@@ -1,6 +1,6 @@
 {
   "name": "School Management System",
-  "description": "Comprehensive school management platform featuring academic session transitions, class structure configuration, CSV/Excel data migration, admission pipeline, student dossiers, and visual attendance heatmaps.",
+  "description": "Enterprise school management platform featuring academic sessions, class structure, CSV/Excel data migration, admission pipeline, student dossiers, attendance heatmaps, decoupled timetables, exam/CA scheduling with grading lock gates, and high-speed teacher gradebook with Excel copy-paste.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

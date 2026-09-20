@@ -25,7 +25,20 @@ export interface DashboardPageProps {
   levels: ClassLevel[];
   auditLogs: AuditLog[];
   userRole: Role;
-  onNavigateTab: (tab: 'dashboard' | 'admissions' | 'students' | 'sessions' | 'class-structure' | 'data-migration' | 'design-system') => void;
+  onNavigateTab: (
+    tab:
+      | 'dashboard'
+      | 'admissions'
+      | 'students'
+      | 'sessions'
+      | 'class-structure'
+      | 'timetables'
+      | 'teacher-timetable'
+      | 'assessments'
+      | 'gradebook'
+      | 'data-migration'
+      | 'design-system'
+  ) => void;
   onAdvanceTermRequest: () => void;
 }
 
@@ -416,6 +429,162 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
               className="bg-indigo-600 hover:bg-indigo-700 text-white shrink-0 shadow-xs"
             >
               Open Importer
+            </Button>
+          </div>
+        </div>
+      </div>
+
+      {/* Decoupled Timetable Systems (Invariant #2) */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* Class Timetables (Admin-Owned) */}
+        <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-xl p-5 flex flex-col justify-between gap-4 shadow-xs">
+          <div className="flex items-start gap-3.5">
+            <div className="p-3 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 shrink-0">
+              <Calendar className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h4 className="font-bold text-slate-900 dark:text-slate-100 text-sm sm:text-base">
+                  Class Timetables & Streams
+                </h4>
+                <Badge variant="primary" size="sm">
+                  Admin-Owned
+                </Badge>
+              </div>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                Official registrar schedules per class and arm. Real-time conflict engine prevents teacher and room double-bookings school-wide.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between pt-2 border-t border-slate-100 dark:border-slate-800">
+            <span className="text-xs text-slate-400 font-medium">
+              Read-only for students/parents
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => onNavigateTab('timetables')}
+              rightIcon={<ArrowRight className="w-4 h-4" />}
+            >
+              Class Timetables
+            </Button>
+          </div>
+        </div>
+
+        {/* Teacher Personal Timetable (Private Planning) */}
+        <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-xl p-5 flex flex-col justify-between gap-4 shadow-xs">
+          <div className="flex items-start gap-3.5">
+            <div className="p-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 shrink-0">
+              <Clock className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h4 className="font-bold text-slate-900 dark:text-slate-100 text-sm sm:text-base">
+                  Teacher Personal Timetables
+                </h4>
+                <Badge variant="success" size="sm">
+                  Private Planner
+                </Badge>
+                <Badge variant="info" size="sm" className="hidden sm:inline-flex">
+                  Decoupled (Invariant #2)
+                </Badge>
+              </div>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                Private planning view per educator. One-time import from official schedule, freely editable notes and prep time, with zero write-back.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between pt-2 border-t border-slate-100 dark:border-slate-800">
+            <span className="text-xs text-slate-400 font-medium">
+              Non-blocking overlap checks
+            </span>
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={() => onNavigateTab('teacher-timetable')}
+              rightIcon={<ArrowRight className="w-4 h-4" />}
+              className="bg-emerald-600 hover:bg-emerald-700 text-white"
+            >
+              Teacher Planner
+            </Button>
+          </div>
+        </div>
+      </div>
+
+      {/* Assessment Scheduling & Gradebook Engines (Steps 11 & 12) */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* Exam & CA Scheduling */}
+        <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-xl p-5 flex flex-col justify-between gap-4 shadow-xs">
+          <div className="flex items-start gap-3.5">
+            <div className="p-3 rounded-xl bg-violet-50 dark:bg-violet-950/60 text-violet-600 dark:text-violet-400 shrink-0">
+              <Calendar className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h4 className="font-bold text-slate-900 dark:text-slate-100 text-sm sm:text-base">
+                  Exam & Assessment Scheduling
+                </h4>
+                <Badge variant="primary" size="sm">
+                  Step 11 Gate
+                </Badge>
+              </div>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                Continuous assessment (CA1, CA2) and terminal exam windows. Automatically locks report card grading until each exam window occurs, with structured student portal feeds.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between pt-2 border-t border-slate-100 dark:border-slate-800">
+            <span className="text-xs text-slate-400 font-medium">
+              Automated grading lock gates
+            </span>
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={() => onNavigateTab('assessments')}
+              rightIcon={<ArrowRight className="w-4 h-4" />}
+              className="bg-violet-600 hover:bg-violet-700 text-white"
+            >
+              Exam Schedules
+            </Button>
+          </div>
+        </div>
+
+        {/* Teacher Gradebook & Calculation */}
+        <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-xl p-5 flex flex-col justify-between gap-4 shadow-xs">
+          <div className="flex items-start gap-3.5">
+            <div className="p-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 shrink-0">
+              <FileSpreadsheet className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h4 className="font-bold text-slate-900 dark:text-slate-100 text-sm sm:text-base">
+                  Teacher Gradebook & Calculation
+                </h4>
+                <Badge variant="success" size="sm">
+                  Step 12 Engine
+                </Badge>
+              </div>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                High-speed spreadsheet grid with Enter/Tab navigation, Excel clipboard paste, real-time total computation, configurable letter boundaries, and class arm rankings.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between pt-2 border-t border-slate-100 dark:border-slate-800">
+            <span className="text-xs text-emerald-700 dark:text-emerald-400 font-medium">
+              40 students scored in &lt;2 min
+            </span>
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={() => onNavigateTab('gradebook')}
+              rightIcon={<ArrowRight className="w-4 h-4" />}
+              className="bg-emerald-600 hover:bg-emerald-700 text-white"
+            >
+              Open Gradebook
             </Button>
           </div>
         </div>

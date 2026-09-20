@@ -12,6 +12,8 @@ import {
   UploadCloud,
   UserPlus,
   Users,
+  Clock,
+  FileSpreadsheet,
 } from 'lucide-react';
 import {
   AcademicSession,
@@ -41,10 +43,25 @@ import { AdmissionsPage } from './components/admissions/AdmissionsPage';
 import { StudentDirectoryPage } from './components/students/StudentDirectoryPage';
 import { AdvanceTermModal } from './components/academic/AdvanceTermModal';
 import { StudentCredentialModal } from './components/students/StudentCredentialModal';
+import { ClassTimetablePage } from './components/timetable/ClassTimetablePage';
+import { TeacherPersonalTimetablePage } from './components/timetable/TeacherPersonalTimetablePage';
+import { AssessmentSchedulePage } from './components/assessments/AssessmentSchedulePage';
+import { GradebookPage } from './components/gradebook/GradebookPage';
 import { enqueueOfflineAction } from './lib/offline-queue';
 import { getEnrichedStudents } from './lib/students/students-store';
 
-type Tab = 'dashboard' | 'admissions' | 'students' | 'sessions' | 'class-structure' | 'data-migration' | 'design-system';
+type Tab =
+  | 'dashboard'
+  | 'admissions'
+  | 'students'
+  | 'sessions'
+  | 'class-structure'
+  | 'timetables'
+  | 'teacher-timetable'
+  | 'assessments'
+  | 'gradebook'
+  | 'data-migration'
+  | 'design-system';
 
 export default function App() {
   // State with localStorage persistence
@@ -324,6 +341,50 @@ export default function App() {
                   badge={`${levels.length} Levels`}
                 />
                 <SidebarNavItem
+                  icon={Calendar}
+                  label="Class Timetables"
+                  isActive={activeTab === 'timetables'}
+                  onClick={() => {
+                    setActiveTab('timetables');
+                    setMobileMenuOpen(false);
+                  }}
+                  badge="Admin-Owned"
+                  badgeVariant="primary"
+                />
+                <SidebarNavItem
+                  icon={Clock}
+                  label="Teacher Timetables"
+                  isActive={activeTab === 'teacher-timetable'}
+                  onClick={() => {
+                    setActiveTab('teacher-timetable');
+                    setMobileMenuOpen(false);
+                  }}
+                  badge="Private Plan"
+                  badgeVariant="success"
+                />
+                <SidebarNavItem
+                  icon={GraduationCap}
+                  label="Exam & CA Schedules"
+                  isActive={activeTab === 'assessments'}
+                  onClick={() => {
+                    setActiveTab('assessments');
+                    setMobileMenuOpen(false);
+                  }}
+                  badge="Step 11"
+                  badgeVariant="primary"
+                />
+                <SidebarNavItem
+                  icon={FileSpreadsheet}
+                  label="Teacher Gradebook"
+                  isActive={activeTab === 'gradebook'}
+                  onClick={() => {
+                    setActiveTab('gradebook');
+                    setMobileMenuOpen(false);
+                  }}
+                  badge="Step 12"
+                  badgeVariant="success"
+                />
+                <SidebarNavItem
                   icon={UploadCloud}
                   label="Data Migration Importer"
                   isActive={activeTab === 'data-migration'}
@@ -431,6 +492,70 @@ export default function App() {
 
               <button
                 type="button"
+                onClick={() => setActiveTab('timetables')}
+                className={`h-full border-b-2 font-medium flex items-center gap-2 transition-all cursor-pointer ${
+                  activeTab === 'timetables'
+                    ? 'border-indigo-600 text-indigo-600 dark:border-indigo-400 dark:text-indigo-400 font-bold'
+                    : 'border-transparent text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200'
+                }`}
+              >
+                <Calendar className="w-4 h-4" />
+                <span>Class Timetables</span>
+                <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-indigo-100 text-indigo-800 dark:bg-indigo-950 dark:text-indigo-300 font-semibold">
+                  Admin
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setActiveTab('teacher-timetable')}
+                className={`h-full border-b-2 font-medium flex items-center gap-2 transition-all cursor-pointer ${
+                  activeTab === 'teacher-timetable'
+                    ? 'border-indigo-600 text-indigo-600 dark:border-indigo-400 dark:text-indigo-400 font-bold'
+                    : 'border-transparent text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200'
+                }`}
+              >
+                <Clock className="w-4 h-4" />
+                <span>Teacher Timetable</span>
+                <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 font-semibold">
+                  Private
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setActiveTab('assessments')}
+                className={`h-full border-b-2 font-medium flex items-center gap-2 transition-all cursor-pointer ${
+                  activeTab === 'assessments'
+                    ? 'border-indigo-600 text-indigo-600 dark:border-indigo-400 dark:text-indigo-400 font-bold'
+                    : 'border-transparent text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200'
+                }`}
+              >
+                <GraduationCap className="w-4 h-4" />
+                <span>Exam Schedules</span>
+                <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-violet-100 text-violet-800 dark:bg-violet-950 dark:text-violet-300 font-semibold">
+                  Gated
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setActiveTab('gradebook')}
+                className={`h-full border-b-2 font-medium flex items-center gap-2 transition-all cursor-pointer ${
+                  activeTab === 'gradebook'
+                    ? 'border-indigo-600 text-indigo-600 dark:border-indigo-400 dark:text-indigo-400 font-bold'
+                    : 'border-transparent text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200'
+                }`}
+              >
+                <FileSpreadsheet className="w-4 h-4" />
+                <span>Gradebook</span>
+                <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 font-semibold">
+                  Marks
+                </span>
+              </button>
+
+              <button
+                type="button"
                 onClick={() => setActiveTab('data-migration')}
                 className={`h-full border-b-2 font-medium flex items-center gap-2 transition-all cursor-pointer ${
                   activeTab === 'data-migration'
@@ -508,6 +633,41 @@ export default function App() {
                 onUpdateLevels={setLevels}
                 userRole={currentUser.role}
                 onLogAudit={handleLogAudit}
+              />
+            )}
+
+            {activeTab === 'timetables' && (
+              <ClassTimetablePage
+                levels={levels}
+                userRole={currentUser.role}
+                onLogAudit={handleLogAudit}
+                onNavigateToTeacherTimetable={() => setActiveTab('teacher-timetable')}
+              />
+            )}
+
+            {activeTab === 'teacher-timetable' && (
+              <TeacherPersonalTimetablePage
+                levels={levels}
+                currentUser={currentUser}
+                onLogAudit={handleLogAudit}
+              />
+            )}
+
+            {activeTab === 'assessments' && (
+              <AssessmentSchedulePage
+                levels={levels}
+                currentUser={currentUser}
+                onLogAudit={handleLogAudit}
+                onNavigateToGradebook={() => setActiveTab('gradebook')}
+              />
+            )}
+
+            {activeTab === 'gradebook' && (
+              <GradebookPage
+                levels={levels}
+                currentUser={currentUser}
+                onLogAudit={handleLogAudit}
+                onNavigateToAssessments={() => setActiveTab('assessments')}
               />
             )}
 

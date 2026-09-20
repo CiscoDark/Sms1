@@ -8,6 +8,7 @@ import {
   Mail,
   TrendingUp,
   GraduationCap,
+  ShieldCheck,
 } from 'lucide-react';
 import { ClassArm, ClassLevel } from '../../types';
 import { Drawer, Badge, Button, ProgressRing, Table, TableHead, TableBody, TableRow, TableHeaderCell, TableCell } from '../../design-system';
@@ -125,28 +126,71 @@ export const ClassAssignmentSnapshotDrawer: React.FC<ClassAssignmentSnapshotDraw
           </div>
         </div>
 
-        {/* Assigned Teacher Details */}
-        <div className="p-4 bg-indigo-50/50 dark:bg-indigo-950/20 rounded-xl border border-indigo-100 dark:border-indigo-900/60 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-indigo-600 text-white flex items-center justify-center font-bold text-sm">
-              {arm.teacherName.split(' ')[1]?.[0] || 'T'}
+        {/* Assigned Teacher & Class Captains */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          {/* Form Master */}
+          <div className="p-4 bg-indigo-50/50 dark:bg-indigo-950/20 rounded-xl border border-indigo-100 dark:border-indigo-900/60 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-indigo-600 text-white flex items-center justify-center font-bold text-sm">
+                {arm.teacherName.split(' ')[1]?.[0] || 'T'}
+              </div>
+              <div>
+                <div className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 uppercase tracking-wider">
+                  Assigned Form Master
+                </div>
+                <div className="text-sm font-bold text-slate-900 dark:text-slate-100">
+                  {arm.teacherName}
+                </div>
+                <div className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1 mt-0.5">
+                  <Mail className="w-3 h-3 text-slate-400" />
+                  <span>{arm.teacherEmail}</span>
+                </div>
+              </div>
             </div>
-            <div>
-              <div className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 uppercase tracking-wider">
-                Assigned Form Master / Class Teacher
-              </div>
-              <div className="text-sm font-bold text-slate-900 dark:text-slate-100">
-                {arm.teacherName}
-              </div>
-              <div className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1 mt-0.5">
-                <Mail className="w-3 h-3 text-slate-400" />
-                <span>{arm.teacherEmail}</span>
-              </div>
-            </div>
+            <Badge variant="success" size="sm">
+              Active
+            </Badge>
           </div>
-          <Badge variant="success" size="sm">
-            Active Assignment
-          </Badge>
+
+          {/* Student Class Captains */}
+          <div className="p-4 bg-amber-50/50 dark:bg-amber-950/20 rounded-xl border border-amber-100 dark:border-amber-900/60 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-amber-500 text-white flex items-center justify-center font-bold text-sm">
+                ★
+              </div>
+              <div>
+                <div className="text-xs font-semibold text-amber-700 dark:text-amber-400 uppercase tracking-wider">
+                  Class Leadership (Captains)
+                </div>
+                <div className="text-sm font-bold text-slate-900 dark:text-slate-100">
+                  {arm.classCaptainName || 'Tobi Adebayo (Assigned)'}
+                </div>
+                <div className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                  Assistant: {arm.assistantCaptainName || 'Zainab Ibrahim'}
+                </div>
+              </div>
+            </div>
+            <Badge variant="warning" size="sm">
+              Elected
+            </Badge>
+          </div>
+        </div>
+
+        {/* Temporal Immutability Snapshot Badge & Log for this Arm */}
+        <div className="p-3.5 bg-slate-900 rounded-xl border border-slate-800 text-slate-100 space-y-2">
+          <div className="flex items-center justify-between text-xs">
+            <span className="font-semibold text-emerald-400 flex items-center gap-1.5">
+              <ShieldCheck className="w-4 h-4" />
+              Invariant #3: Temporal Immutability Status
+            </span>
+            <Badge variant="success" size="sm">
+              Snapshots Active
+            </Badge>
+          </div>
+          <p className="text-xs text-slate-300">
+            Historical report cards and term promotion transcripts store an immutable point-in-time snapshot of 
+            <strong className="text-indigo-300"> "{level?.name || 'Class Level'} - {arm.name}"</strong>. Renaming this stream will mint a new snapshot without mutating historical records.
+          </p>
         </div>
 
         {/* Student Roster Preview */}
