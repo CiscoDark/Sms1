@@ -13,6 +13,8 @@ import {
   BookOpen,
   UploadCloud,
   FileSpreadsheet,
+  UserPlus,
+  Sparkles,
 } from 'lucide-react';
 import { AcademicSession, ClassLevel, AuditLog, Role } from '../../types';
 import { Card, Button, Badge, ProgressRing, CountUp, Table, TableHead, TableBody, TableRow, TableHeaderCell, TableCell } from '../../design-system';
@@ -23,7 +25,7 @@ export interface DashboardPageProps {
   levels: ClassLevel[];
   auditLogs: AuditLog[];
   userRole: Role;
-  onNavigateTab: (tab: 'dashboard' | 'sessions' | 'class-structure' | 'data-migration' | 'design-system') => void;
+  onNavigateTab: (tab: 'dashboard' | 'admissions' | 'students' | 'sessions' | 'class-structure' | 'data-migration' | 'design-system') => void;
   onAdvanceTermRequest: () => void;
 }
 
@@ -303,36 +305,120 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
         </div>
       </div>
 
-      {/* Bulk Data Migration Banner */}
-      <div className="bg-gradient-to-r from-indigo-500/10 via-indigo-500/5 to-transparent border border-indigo-200 dark:border-indigo-900/60 rounded-xl p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div className="flex items-center gap-3.5">
-          <div className="p-3 rounded-xl bg-indigo-600 text-white shadow-xs">
-            <UploadCloud className="w-5 h-5" />
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <h4 className="font-bold text-slate-900 dark:text-slate-100 text-sm sm:text-base">
-                CSV / Excel Bulk Data Migration Importer
-              </h4>
-              <Badge variant="primary" size="sm">
-                Step 6 Migration
-              </Badge>
+      {/* Core Modules Banners Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {/* Student Records & Attendance Banner */}
+        <div className="bg-gradient-to-r from-blue-500/10 via-blue-500/5 to-transparent border border-blue-200 dark:border-blue-900/60 rounded-xl p-5 flex flex-col justify-between gap-4">
+          <div className="flex items-start gap-3.5">
+            <div className="p-3 rounded-xl bg-blue-600 text-white shadow-xs shrink-0">
+              <Users className="w-5 h-5" />
             </div>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 max-w-xl">
-              Upload student cohorts, faculty registers, and historical fee ledgers with automatic pre-validation, phone format verification, and row-level inline error correction.
-            </p>
+            <div>
+              <div className="flex items-center gap-2">
+                <h4 className="font-bold text-slate-900 dark:text-slate-100 text-sm sm:text-base">
+                  Student Records & Attendance
+                </h4>
+                <Badge variant="primary" size="sm">
+                  Active
+                </Badge>
+              </div>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                Full bio-data dossiers, verified documents vault, point-in-time academic promotion snapshots, daily check-in, and visual attendance heatmaps.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between pt-2 border-t border-blue-100 dark:border-blue-900/30">
+            <span className="text-xs text-blue-700 dark:text-blue-400 font-medium flex items-center gap-1">
+              <Sparkles className="w-3.5 h-3.5" />
+              Heatmap Calendar & Streaks
+            </span>
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={() => onNavigateTab('students')}
+              rightIcon={<ArrowRight className="w-4 h-4" />}
+              className="bg-blue-600 hover:bg-blue-700 text-white shrink-0 shadow-xs"
+            >
+              Open Records
+            </Button>
           </div>
         </div>
 
-        <Button
-          variant="primary"
-          size="sm"
-          onClick={() => onNavigateTab('data-migration')}
-          rightIcon={<ArrowRight className="w-4 h-4" />}
-          className="bg-indigo-600 hover:bg-indigo-700 text-white shrink-0 shadow-xs"
-        >
-          Open Importer
-        </Button>
+        {/* Admission & Enrollment Pipeline Banner */}
+        <div className="bg-gradient-to-r from-emerald-500/10 via-emerald-500/5 to-transparent border border-emerald-200 dark:border-emerald-900/60 rounded-xl p-5 flex flex-col justify-between gap-4">
+          <div className="flex items-start gap-3.5">
+            <div className="p-3 rounded-xl bg-emerald-600 text-white shadow-xs shrink-0">
+              <UserPlus className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h4 className="font-bold text-slate-900 dark:text-slate-100 text-sm sm:text-base">
+                  Admission & Enrollment Pipeline
+                </h4>
+                <Badge variant="success" size="sm">
+                  Pipeline
+                </Badge>
+              </div>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                Manage candidate stages (Applied → Review → Assessed → Admitted → Enrolled), attach interview scoring, assign arms, and auto-generate student records.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between pt-2 border-t border-emerald-100 dark:border-emerald-900/30">
+            <span className="text-xs text-emerald-700 dark:text-emerald-400 font-medium flex items-center gap-1">
+              <Sparkles className="w-3.5 h-3.5" />
+              Preserved archive
+            </span>
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={() => onNavigateTab('admissions')}
+              rightIcon={<ArrowRight className="w-4 h-4" />}
+              className="bg-emerald-600 hover:bg-emerald-700 text-white shrink-0 shadow-xs"
+            >
+              Open Pipeline
+            </Button>
+          </div>
+        </div>
+
+        {/* Bulk Data Migration Banner */}
+        <div className="bg-gradient-to-r from-indigo-500/10 via-indigo-500/5 to-transparent border border-indigo-200 dark:border-indigo-900/60 rounded-xl p-5 flex flex-col justify-between gap-4">
+          <div className="flex items-start gap-3.5">
+            <div className="p-3 rounded-xl bg-indigo-600 text-white shadow-xs shrink-0">
+              <UploadCloud className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h4 className="font-bold text-slate-900 dark:text-slate-100 text-sm sm:text-base">
+                  CSV / Excel Bulk Data Importer
+                </h4>
+                <Badge variant="primary" size="sm">
+                  Migration
+                </Badge>
+              </div>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                Upload student registers, staff directories, and fee payments with automatic pre-validation, phone format checks, and row-level correction.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between pt-2 border-t border-indigo-100 dark:border-indigo-900/30">
+            <span className="text-xs text-indigo-700 dark:text-indigo-400 font-medium">
+              Multi-entity spreadsheet ingestion
+            </span>
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={() => onNavigateTab('data-migration')}
+              rightIcon={<ArrowRight className="w-4 h-4" />}
+              className="bg-indigo-600 hover:bg-indigo-700 text-white shrink-0 shadow-xs"
+            >
+              Open Importer
+            </Button>
+          </div>
+        </div>
       </div>
 
       {/* Recent Audit Activity Log */}

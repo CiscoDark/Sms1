@@ -10,6 +10,8 @@ import {
   X,
   GraduationCap,
   UploadCloud,
+  UserPlus,
+  Users,
 } from 'lucide-react';
 import {
   AcademicSession,
@@ -18,6 +20,7 @@ import {
   AuditLog,
   Role,
   Term,
+  Student,
 } from './types';
 import {
   INITIAL_SESSIONS,
@@ -34,10 +37,14 @@ import { AcademicSessionsPage } from './components/academic/AcademicSessionsPage
 import { ClassStructurePage } from './components/class-structure/ClassStructurePage';
 import { DesignSystemPage } from './components/design-system/DesignSystemPage';
 import { DataMigrationPage } from './components/importer/DataMigrationPage';
+import { AdmissionsPage } from './components/admissions/AdmissionsPage';
+import { StudentDirectoryPage } from './components/students/StudentDirectoryPage';
 import { AdvanceTermModal } from './components/academic/AdvanceTermModal';
+import { StudentCredentialModal } from './components/students/StudentCredentialModal';
 import { enqueueOfflineAction } from './lib/offline-queue';
+import { getEnrichedStudents } from './lib/students/students-store';
 
-type Tab = 'dashboard' | 'sessions' | 'class-structure' | 'data-migration' | 'design-system';
+type Tab = 'dashboard' | 'admissions' | 'students' | 'sessions' | 'class-structure' | 'data-migration' | 'design-system';
 
 export default function App() {
   // State with localStorage persistence
@@ -77,8 +84,35 @@ export default function App() {
     }
   });
 
+  // Students state populated with enriched records
+  const [students, setStudents] = useState<Student[]>(() => {
+    return getEnrichedStudents();
+  });
+
+  const refreshStudents = () => {
+    setStudents(getEnrichedStudents());
+  };
+
   const [activeTab, setActiveTab] = useState<Tab>('dashboard');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [publicVerifyStudent, setPublicVerifyStudent] = useState<Student | null>(null);
+
+  // Check URL for public credential verification hash or query parameter
+  useEffect(() => {
+    const checkVerificationRoute = () => {
+      const hash = window.location.hash;
+      const search = window.location.search;
+      if (hash.includes('/verify-credential/') || search.includes('verify=')) {
+        // Find matching student by uuid or id, or select the first student
+        const target = students[0] || null;
+        setPublicVerifyStudent(target);
+      }
+    };
+
+    checkVerificationRoute();
+    window.addEventListener('hashchange', checkVerificationRoute);
+    return () => window.removeEventListener('hashchange', checkVerificationRoute);
+  }, [students]);
 
   // Global Advance Term Modal State
   const [globalAdvanceModal, setGlobalAdvanceModal] = useState(false);
@@ -247,6 +281,28 @@ export default function App() {
                   }}
                 />
                 <SidebarNavItem
+                  icon={UserPlus}
+                  label="Admission & Enrollment"
+                  isActive={activeTab === 'admissions'}
+                  onClick={() => {
+                    setActiveTab('admissions');
+                    setMobileMenuOpen(false);
+                  }}
+                  badge="Pipeline"
+                  badgeVariant="success"
+                />
+                <SidebarNavItem
+                  icon={Users}
+                  label="Student Records & Attendance"
+                  isActive={activeTab === 'students'}
+                  onClick={() => {
+                    setActiveTab('students');
+                    setMobileMenuOpen(false);
+                  }}
+                  badge={`${students.length} Records`}
+                  badgeVariant="primary"
+                />
+                <SidebarNavItem
                   icon={Calendar}
                   label="Academic Sessions & Terms"
                   isActive={activeTab === 'sessions'}
@@ -305,6 +361,38 @@ export default function App() {
               >
                 <LayoutDashboard className="w-4 h-4" />
                 <span>Dashboard</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setActiveTab('admissions')}
+                className={`h-full border-b-2 font-medium flex items-center gap-2 transition-all cursor-pointer ${
+                  activeTab === 'admissions'
+                    ? 'border-emerald-600 text-emerald-600 dark:border-emerald-400 dark:text-emerald-400 font-bold'
+                    : 'border-transparent text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200'
+                }`}
+              >
+                <UserPlus className="w-4 h-4" />
+                <span>Admissions</span>
+                <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 font-semibold">
+                  Pipeline
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setActiveTab('students')}
+                className={`h-full border-b-2 font-medium flex items-center gap-2 transition-all cursor-pointer ${
+                  activeTab === 'students'
+                    ? 'border-indigo-600 text-indigo-600 dark:border-indigo-400 dark:text-indigo-400 font-bold'
+                    : 'border-transparent text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200'
+                }`}
+              >
+                <Users className="w-4 h-4" />
+                <span>Student Records</span>
+                <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-indigo-100 text-indigo-800 dark:bg-indigo-950 dark:text-indigo-300 font-semibold">
+                  {students.length}
+                </span>
               </button>
 
               <button
@@ -385,6 +473,26 @@ export default function App() {
               />
             )}
 
+            {activeTab === 'admissions' && (
+              <AdmissionsPage
+                levels={levels}
+                onLevelsUpdate={setLevels}
+                currentSession={currentSession}
+                currentUser={currentUser}
+                onLogAudit={handleLogAudit}
+              />
+            )}
+
+            {activeTab === 'students' && (
+              <StudentDirectoryPage
+                students={students}
+                levels={levels}
+                currentUser={currentUser}
+                onLogAudit={handleLogAudit}
+                onRefreshStudents={refreshStudents}
+              />
+            )}
+
             {activeTab === 'sessions' && (
               <AcademicSessionsPage
                 sessions={sessions}
@@ -428,6 +536,20 @@ export default function App() {
                 ] || null
               }
               onConfirmAdvance={handleConfirmAdvanceGlobal}
+            />
+          )}
+
+          {/* Direct Public Credential QR Verification Modal */}
+          {publicVerifyStudent && (
+            <StudentCredentialModal
+              isOpen={!!publicVerifyStudent}
+              onClose={() => {
+                setPublicVerifyStudent(null);
+                if (window.location.hash.includes('/verify-credential/')) {
+                  window.location.hash = '';
+                }
+              }}
+              student={publicVerifyStudent}
             />
           )}
 

@@ -97,10 +97,73 @@ export interface OfflineQueueItem {
 
 export type ImportEntityType = 'STUDENTS' | 'STAFF' | 'FEES';
 
+export interface AcademicRecordSnapshot {
+  id: string;
+  sessionYear: string;
+  termName: string;
+  classLevel: string;
+  classArm: string;
+  averageScore: number;
+  grade: string;
+  positionInClass?: number;
+  totalInClass?: number;
+  attendanceRate: number;
+  promotionStatus: 'PROMOTED' | 'PROMOTED_ON_TRIAL' | 'REPEATED' | 'CURRENT';
+  promotedTo?: string;
+  promotedDate?: string;
+  principalRemarks?: string;
+  snapshotTimestamp: string;
+}
+
+export interface StudentDocument {
+  id: string;
+  studentId: string;
+  title: string;
+  fileName: string;
+  fileSize: string;
+  fileType: string;
+  category: 'BIRTH_CERTIFICATE' | 'ACADEMIC_TRANSCRIPT' | 'MEDICAL_RECORD' | 'IDENTIFICATION' | 'OTHER';
+  uploadedAt: string;
+  uploadedBy: string;
+  fileUrl?: string;
+}
+
+export type AttendanceStatus = 'PRESENT' | 'ABSENT' | 'LATE' | 'EXCUSED';
+
+export interface AttendanceRecord {
+  id: string;
+  studentId: string;
+  studentName: string;
+  admissionNumber: string;
+  classLevel: string;
+  classArm: string;
+  date: string; // YYYY-MM-DD
+  status: AttendanceStatus;
+  arrivalTime?: string;
+  remarks?: string;
+  markedBy: string;
+  markedAt: string;
+}
+
+export interface ClassDailyAttendanceSummary {
+  date: string;
+  classLevel: string;
+  classArm: string;
+  totalCount: number;
+  presentCount: number;
+  absentCount: number;
+  lateCount: number;
+  excusedCount: number;
+  attendanceRate: number;
+  markedAt?: string;
+  markedBy?: string;
+}
+
 export interface Student {
   id: string;
   admissionNumber: string;
   firstName: string;
+  middleName?: string;
   lastName: string;
   gender: 'M' | 'F';
   classLevel: string;
@@ -108,10 +171,24 @@ export interface Student {
   guardianName: string;
   guardianPhone: string;
   guardianEmail?: string;
+  guardianRelationship?: string;
+  guardianOccupation?: string;
+  guardianAddress?: string;
   dob?: string;
   bloodGroup?: string;
+  genotype?: string;
+  allergies?: string[];
+  medicalNotes?: string;
+  emergencyContactName?: string;
+  emergencyContactPhone?: string;
+  nationality?: string;
+  stateOfOrigin?: string;
+  residentialAddress?: string;
+  avatarUrl?: string;
   enrollmentDate: string;
   status: 'ACTIVE' | 'GRADUATED' | 'TRANSFERRED' | 'SUSPENDED';
+  academicHistory?: AcademicRecordSnapshot[];
+  documents?: StudentDocument[];
 }
 
 export interface Staff {
@@ -170,3 +247,60 @@ export interface ImportBatchSummary {
   corrected: number;
   committed: number;
 }
+
+export type AdmissionStage =
+  | 'APPLIED'
+  | 'UNDER_REVIEW'
+  | 'ASSESSED'
+  | 'ADMITTED'
+  | 'ENROLLED'
+  | 'REJECTED'
+  | 'WITHDRAWN';
+
+export interface AssessmentScore {
+  subject: string;
+  score: number;
+  maxScore: number;
+}
+
+export interface StageHistoryEntry {
+  id: string;
+  stage: AdmissionStage;
+  changedAt: string;
+  changedBy: string;
+  notes?: string;
+}
+
+export interface Applicant {
+  id: string;
+  applicationNumber: string;
+  appliedDate: string;
+  firstName: string;
+  middleName?: string;
+  lastName: string;
+  gender: 'M' | 'F';
+  dateOfBirth: string;
+  residentialAddress: string;
+  desiredLevel: string;
+  desiredArmPreference?: string;
+  priorSchool: string;
+  priorGradeAverage?: string;
+  guardianName: string;
+  guardianRelationship: string;
+  guardianPhone: string;
+  guardianEmail?: string;
+  guardianOccupation?: string;
+  stage: AdmissionStage;
+  assessmentNotes?: string;
+  assessmentScores?: AssessmentScore[];
+  totalAssessmentScore?: number;
+  interviewerName?: string;
+  assessmentDate?: string;
+  rejectionReason?: string;
+  withdrawalReason?: string;
+  assignedArm?: string;
+  assignedAdmissionNumber?: string;
+  enrolledDate?: string;
+  stageHistory: StageHistoryEntry[];
+}
+
