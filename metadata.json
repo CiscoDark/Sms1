@@ -1,0 +1,6 @@
+{
+  "name": "School Management System",
+  "description": "Comprehensive school management platform featuring academic session transitions, class structure configuration, and robust CSV/Excel data migration with pre-validation and row-level correction.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
