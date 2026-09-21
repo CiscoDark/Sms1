@@ -41,15 +41,24 @@ import {
   computeGradebookSummary,
   parseExcelClipboardData,
   applyPastedScoresToGradebook,
+  computeCumulativeAnnualResults,
+  getPriorTermsForSubject,
 } from '../../lib/gradebook-store';
+import { CumulativeStudentSubjectRecord, ReportCardSnapshot } from '../../types';
 import { GradingConfigModal } from './GradingConfigModal';
 import { PasteFromExcelModal } from './PasteFromExcelModal';
+import { CumulativeBroadsheetView } from './CumulativeBroadsheetView';
+import { AiRemarkDraftModal } from './AiRemarkDraftModal';
+import { BulkAiRemarksModal } from './BulkAiRemarksModal';
+import { BulkReportCardModal } from '../report-cards/BulkReportCardModal';
+import { ReportCardDocumentModal } from '../report-cards/ReportCardDocumentModal';
 
 export interface GradebookPageProps {
   levels: ClassLevel[];
   currentUser: UserProfile;
   onLogAudit?: (action: string, details: string) => void;
   onNavigateToAssessments?: () => void;
+  onOpenPublicVerification?: (uuid: string) => void;
 }
 
 type ColumnKey = 'ca1Score' | 'ca2Score' | 'examScore';
@@ -59,6 +68,7 @@ export const GradebookPage: React.FC<GradebookPageProps> = ({
   currentUser,
   onLogAudit,
   onNavigateToAssessments,
+  onOpenPublicVerification,
 }) => {
   // Class selection state
   const [selectedLevelId, setSelectedLevelId] = useState<string>(levels[0]?.id || 'level-jss-1');
@@ -80,7 +90,10 @@ export const GradebookPage: React.FC<GradebookPageProps> = ({
 
   const [selectedSubjectCode, setSelectedSubjectCode] = useState<string>('MTH');
   const [sessionYear] = useState<string>('2024/2025');
-  const [termName] = useState<string>('First Term');
+  const [termName, setTermName] = useState<string>('First Term');
+  const [viewMode, setViewMode] = useState<'MARKS_ENTRY' | 'CUMULATIVE_SUMMARY'>('MARKS_ENTRY');
+
+  const isAdmin = ['SUPER_ADMIN', 'ADMIN'].includes(currentUser.role);
 
   // Search & Filter
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -90,6 +103,42 @@ export const GradebookPage: React.FC<GradebookPageProps> = ({
   const [gradingConfig, setGradingConfig] = useState<GradingConfiguration>(() => getGradingConfig());
   const [isConfigModalOpen, setIsConfigModalOpen] = useState(false);
   const [isPasteModalOpen, setIsPasteModalOpen] = useState(false);
+
+  // Step 13 & 14 AI Remark & Report Card Modals
+  const [activeRemarkRecord, setActiveRemarkRecord] = useState<StudentSubjectGradeRecord | null>(null);
+  const [isBulkRemarksModalOpen, setIsBulkRemarksModalOpen] = useState<boolean>(false);
+  const [isBulkReportCardsModalOpen, setIsBulkReportCardsModalOpen] = useState<boolean>(false);
+  const [previewReportCard, setPreviewReportCard] = useState<ReportCardSnapshot | null>(null);
+
+  const handleSaveSingleRemark = (studentId: string, remarkText: string) => {
+    setRecords((prev) =>
+      prev.map((r) =>
+        r.studentId === studentId
+          ? { ...r, remark: remarkText, teacherRemarks: remarkText }
+          : r
+      )
+    );
+    onLogAudit?.(
+      'AI_REMARK_SIGNED_OFF',
+      `Teacher ${currentUser.name} signed off remark for student ${studentId}`
+    );
+  };
+
+  const handleApplyBulkRemarks = (updatedList: { studentId: string; remark: string }[]) => {
+    setRecords((prev) =>
+      prev.map((r) => {
+        const found = updatedList.find((u) => u.studentId === r.studentId);
+        if (found) {
+          return { ...r, remark: found.remark, teacherRemarks: found.remark };
+        }
+        return r;
+      })
+    );
+    onLogAudit?.(
+      'BULK_AI_REMARKS_APPLIED',
+      `Applied ${updatedList.length} teacher-reviewed AI remarks to class ${selectedLevel?.name} - ${selectedArm?.name}`
+    );
+  };
 
   // Grade records & save status
   const [records, setRecords] = useState<StudentSubjectGradeRecord[]>([]);
@@ -136,6 +185,30 @@ export const GradebookPage: React.FC<GradebookPageProps> = ({
     setSaveStatus('saved');
     setLastSavedTime(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
   }, [selectedLevelId, selectedArmId, selectedSubjectCode, sessionYear, termName]);
+
+  // When in Third Term, fetch prior terms (Term 1 & Term 2) for cumulative promotion broadsheet
+  const { term1Records, term2Records } = useMemo(() => {
+    if (termName !== 'Third Term') {
+      return { term1Records: [], term2Records: [] };
+    }
+    const allStudents = getEnrichedStudents();
+    return getPriorTermsForSubject(
+      allStudents,
+      selectedLevel?.id || 'level-jss-1',
+      selectedLevel?.name || 'JSS 1',
+      selectedArm?.id || 'arm-diamond',
+      selectedArm?.name || 'Diamond',
+      selectedSubjectCode,
+      selectedSubject.name,
+      sessionYear
+    );
+  }, [termName, selectedLevelId, selectedArmId, selectedSubjectCode, sessionYear]);
+
+  // Compute 3rd Term Nigerian Cumulative Annual composite (20% T1 + 30% T2 + 50% T3)
+  const cumulativeRecords: CumulativeStudentSubjectRecord[] = useMemo(() => {
+    if (termName !== 'Third Term') return [];
+    return computeCumulativeAnnualResults(records, term1Records, term2Records, gradingConfig);
+  }, [termName, records, term1Records, term2Records, gradingConfig]);
 
   // Compute live summary stats
   const summary: GradebookSummary = useMemo(() => {
@@ -368,6 +441,26 @@ export const GradebookPage: React.FC<GradebookPageProps> = ({
           <Button
             variant="outline"
             size="sm"
+            onClick={() => setIsBulkRemarksModalOpen(true)}
+            leftIcon={<Sparkles className="w-4 h-4 text-indigo-600" />}
+            title="Batch draft personalized pedagogical remarks for all students with teacher review"
+          >
+            Batch AI Remarks
+          </Button>
+
+          <Button
+            variant="primary"
+            size="sm"
+            onClick={() => setIsBulkReportCardsModalOpen(true)}
+            leftIcon={<Layers className="w-4 h-4" />}
+            title="Generate and freeze point-in-time report card snapshots with verified QR codes"
+          >
+            Publish Report Cards
+          </Button>
+
+          <Button
+            variant="outline"
+            size="sm"
             onClick={() => setIsPasteModalOpen(true)}
             leftIcon={<UploadCloud className="w-4 h-4 text-indigo-500" />}
             title="Paste scores from Excel or Google Sheets"
@@ -379,9 +472,15 @@ export const GradebookPage: React.FC<GradebookPageProps> = ({
             variant="outline"
             size="sm"
             onClick={() => setIsConfigModalOpen(true)}
-            leftIcon={<SlidersHorizontal className="w-4 h-4 text-slate-600 dark:text-slate-300" />}
+            leftIcon={
+              isAdmin ? (
+                <SlidersHorizontal className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+              ) : (
+                <Lock className="w-4 h-4 text-slate-400" />
+              )
+            }
           >
-            Grading Schema
+            {isAdmin ? 'Grading Schema & Headings (Admin)' : 'Grading Schema (Read-Only)'}
           </Button>
 
           {onNavigateToAssessments && (
@@ -521,6 +620,28 @@ export const GradebookPage: React.FC<GradebookPageProps> = ({
               ))}
             </select>
           </div>
+
+          {/* Academic Term Selector */}
+          <div className="space-y-1">
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+              Academic Term
+            </span>
+            <select
+              value={termName}
+              onChange={(e) => {
+                const newTerm = e.target.value;
+                setTermName(newTerm);
+                if (newTerm !== 'Third Term') {
+                  setViewMode('MARKS_ENTRY');
+                }
+              }}
+              className="px-3 py-1.5 text-xs font-bold border border-slate-200 dark:border-slate-800 rounded-lg bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100"
+            >
+              <option value="First Term">1st Term</option>
+              <option value="Second Term">2nd Term</option>
+              <option value="Third Term">3rd Term (Promotional)</option>
+            </select>
+          </div>
         </div>
 
         {/* Search & Filter */}
@@ -546,6 +667,55 @@ export const GradebookPage: React.FC<GradebookPageProps> = ({
           </select>
         </div>
       </Card>
+
+      {/* 3rd Term Promotional Cumulative Switcher Banner */}
+      {termName === 'Third Term' && (
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 p-4 rounded-xl bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-950/40 dark:to-purple-950/40 border border-indigo-200 dark:border-indigo-800/80 shadow-xs">
+          <div className="flex items-start gap-3">
+            <div className="p-2 rounded-lg bg-indigo-100 dark:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300 shrink-0">
+              <Award className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h4 className="font-bold text-sm text-indigo-950 dark:text-indigo-200">
+                  Nigerian 3rd Term Promotional Session Engine
+                </h4>
+                <Badge variant="primary" size="sm">
+                  {gradingConfig.cumulativeTerm1Weight ?? 20}% T1 + {gradingConfig.cumulativeTerm2Weight ?? 30}% T2 + {gradingConfig.cumulativeTerm3Weight ?? 50}% T3
+                </Badge>
+              </div>
+              <p className="text-xs text-indigo-800/80 dark:text-indigo-300/80 mt-0.5">
+                Statutory secondary weighting automatically factors 1st &amp; 2nd term continuous achievements into the final promotional grade and class arm ranking.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center bg-white dark:bg-slate-900 p-1 rounded-lg border border-indigo-200 dark:border-indigo-800/60 shadow-xs self-start md:self-auto">
+            <button
+              type="button"
+              onClick={() => setViewMode('MARKS_ENTRY')}
+              className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all cursor-pointer ${
+                viewMode === 'MARKS_ENTRY'
+                  ? 'bg-indigo-600 text-white shadow-xs'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
+              }`}
+            >
+              Term 3 Marks Entry Grid
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode('CUMULATIVE_SUMMARY')}
+              className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all cursor-pointer ${
+                viewMode === 'CUMULATIVE_SUMMARY'
+                  ? 'bg-indigo-600 text-white shadow-xs'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
+              }`}
+            >
+              Annual Cumulative Broadsheet
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Real-time Class Statistics Summary Bar */}
       <div className="grid grid-cols-2 sm:grid-cols-6 gap-3">
@@ -606,30 +776,52 @@ export const GradebookPage: React.FC<GradebookPageProps> = ({
         </Card>
       </div>
 
-      {/* Grade Distribution Breakdown */}
+      {/* Grade Distribution Breakdown (Nigerian A1 - F9 Standard) */}
       <div className="flex items-center gap-2 flex-wrap text-xs bg-slate-50 dark:bg-slate-800/60 p-3 rounded-xl border border-slate-200 dark:border-slate-800">
         <span className="font-bold text-slate-700 dark:text-slate-300">
-          Class Grade Distribution:
+          Nigerian WAEC/NECO Grade Distribution:
         </span>
-        <span className="px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 font-bold">
-          A (Distinction): {summary.distribution.A}
-        </span>
-        <span className="px-2 py-0.5 rounded-full bg-indigo-100 dark:bg-indigo-950 text-indigo-800 dark:text-indigo-300 font-bold">
-          B (Very Good): {summary.distribution.B}
-        </span>
-        <span className="px-2 py-0.5 rounded-full bg-sky-100 dark:bg-sky-950 text-sky-800 dark:text-sky-300 font-bold">
-          C (Credit): {summary.distribution.C}
-        </span>
-        <span className="px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-300 font-bold">
-          D (Pass): {summary.distribution.D}
-        </span>
-        <span className="px-2 py-0.5 rounded-full bg-rose-100 dark:bg-rose-950 text-rose-800 dark:text-rose-300 font-bold">
-          F (Fail): {summary.distribution.F}
-        </span>
+        {gradingConfig.boundaries.map((b) => {
+          const count = summary.distribution[b.grade] || 0;
+          const isA = b.grade.startsWith('A');
+          const isB = b.grade.startsWith('B');
+          const isC = b.grade.startsWith('C');
+          const isPass = b.grade.startsWith('D') || b.grade.startsWith('E');
+
+          const badgeBg = isA
+            ? 'bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300'
+            : isB
+            ? 'bg-indigo-100 dark:bg-indigo-950 text-indigo-800 dark:text-indigo-300'
+            : isC
+            ? 'bg-sky-100 dark:bg-sky-950 text-sky-800 dark:text-sky-300'
+            : isPass
+            ? 'bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-300'
+            : 'bg-rose-100 dark:bg-rose-950 text-rose-800 dark:text-rose-300';
+
+          return (
+            <span
+              key={b.grade}
+              className={`px-2 py-0.5 rounded-full font-bold ${badgeBg}`}
+            >
+              {b.grade} ({b.remark}): {count}
+            </span>
+          );
+        })}
       </div>
 
-      {/* Spreadsheet Data Grid */}
-      <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-xs overflow-hidden">
+      {/* 3rd Term Annual Cumulative Broadsheet OR Standard Spreadsheet Data Grid */}
+      {termName === 'Third Term' && viewMode === 'CUMULATIVE_SUMMARY' ? (
+        <CumulativeBroadsheetView
+          cumulativeRecords={cumulativeRecords}
+          config={gradingConfig}
+          level={selectedLevel}
+          arm={selectedArm}
+          subjectName={selectedSubject.name}
+          sessionYear={sessionYear}
+        />
+      ) : (
+        /* Spreadsheet Data Grid */
+        <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-xs overflow-hidden">
         {/* Table Instructions banner */}
         <div className="px-4 py-2 bg-slate-50 dark:bg-slate-800/70 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400">
           <div className="flex items-center gap-3">
@@ -654,19 +846,19 @@ export const GradebookPage: React.FC<GradebookPageProps> = ({
                 <th className="p-3 min-w-[180px]">Student Name</th>
                 <th className="p-3 w-16 text-center">Gender</th>
                 <th className="p-3 w-28 text-center bg-indigo-50/50 dark:bg-indigo-950/20">
-                  <span>CA 1</span>
+                  <span>{gradingConfig.ca1Name || 'CA 1'}</span>
                   <span className="block text-[10px] font-normal text-slate-400">
                     Max {gradingConfig.ca1Max}
                   </span>
                 </th>
                 <th className="p-3 w-28 text-center bg-indigo-50/50 dark:bg-indigo-950/20">
-                  <span>Mid-Term (CA2)</span>
+                  <span>{gradingConfig.ca2Name || 'Mid-Term (CA2)'}</span>
                   <span className="block text-[10px] font-normal text-slate-400">
                     Max {gradingConfig.ca2Max}
                   </span>
                 </th>
                 <th className="p-3 w-28 text-center bg-indigo-50/50 dark:bg-indigo-950/20">
-                  <span>Terminal Exam</span>
+                  <span>{gradingConfig.examName || 'Terminal Exam'}</span>
                   <span className="block text-[10px] font-normal text-slate-400">
                     Max {gradingConfig.examMax}
                   </span>
@@ -793,13 +985,13 @@ export const GradebookPage: React.FC<GradebookPageProps> = ({
                     <td className="p-3 text-center">
                       {record.grade !== '-' ? (
                         <span className={`px-2 py-0.5 rounded font-black text-xs ${
-                          record.grade === 'A'
+                          record.grade.startsWith('A')
                             ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'
-                            : record.grade === 'B'
+                            : record.grade.startsWith('B')
                             ? 'bg-indigo-100 text-indigo-800 dark:bg-indigo-950 dark:text-indigo-300'
-                            : record.grade === 'C'
+                            : record.grade.startsWith('C')
                             ? 'bg-sky-100 text-sky-800 dark:bg-sky-950 dark:text-sky-300'
-                            : record.grade === 'D'
+                            : record.grade.startsWith('D') || record.grade.startsWith('E')
                             ? 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300'
                             : 'bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300'
                         }`}>
@@ -810,9 +1002,21 @@ export const GradebookPage: React.FC<GradebookPageProps> = ({
                       )}
                     </td>
 
-                    {/* Remark */}
+                    {/* Remark & AI Assistant Button */}
                     <td className="p-3 text-slate-600 dark:text-slate-400 text-xs">
-                      {record.remark}
+                      <div className="flex items-center justify-between gap-1 group">
+                        <span className="truncate max-w-[130px]" title={record.teacherRemarks || record.remark}>
+                          {record.teacherRemarks || record.remark || '—'}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => setActiveRemarkRecord(record)}
+                          className="p-1 rounded-md text-indigo-500 hover:text-indigo-700 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 transition-colors shrink-0"
+                          title="Draft & Review Personalized AI Remark (Step 13)"
+                        >
+                          <Sparkles className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
                     </td>
 
                     {/* Class Arm Position / Rank */}
@@ -871,6 +1075,7 @@ export const GradebookPage: React.FC<GradebookPageProps> = ({
           </table>
         </div>
       </div>
+      )}
 
       {/* Grading Configuration Modal */}
       {isConfigModalOpen && (
@@ -878,6 +1083,7 @@ export const GradebookPage: React.FC<GradebookPageProps> = ({
           isOpen={isConfigModalOpen}
           onClose={() => setIsConfigModalOpen(false)}
           config={gradingConfig}
+          currentUser={currentUser}
           onSaveConfig={handleConfigSaved}
         />
       )}
@@ -898,6 +1104,63 @@ export const GradebookPage: React.FC<GradebookPageProps> = ({
               `Imported ${count} marks via Excel modal for ${selectedLevel?.name} ${selectedArm?.name} (${selectedSubject.name})`
             );
           }}
+        />
+      )}
+
+      {/* Step 13: Single Student AI Remark Draft Modal */}
+      {activeRemarkRecord && (
+        <AiRemarkDraftModal
+          isOpen={!!activeRemarkRecord}
+          onClose={() => setActiveRemarkRecord(null)}
+          record={activeRemarkRecord}
+          currentUser={currentUser}
+          classLevel={selectedLevel?.name || 'JSS 1'}
+          classArm={selectedArm?.name || 'Diamond'}
+          termName={termName}
+          sessionYear={sessionYear}
+          onSaveRemark={handleSaveSingleRemark}
+        />
+      )}
+
+      {/* Step 13: Class Bulk AI Remarks Modal */}
+      {isBulkRemarksModalOpen && (
+        <BulkAiRemarksModal
+          isOpen={isBulkRemarksModalOpen}
+          onClose={() => setIsBulkRemarksModalOpen(false)}
+          records={records}
+          currentUser={currentUser}
+          classLevel={selectedLevel?.name || 'JSS 1'}
+          classArm={selectedArm?.name || 'Diamond'}
+          termName={termName}
+          sessionYear={sessionYear}
+          onApplyBulkRemarks={handleApplyBulkRemarks}
+        />
+      )}
+
+      {/* Step 13/14: Bulk Point-in-Time Report Card Generator */}
+      {isBulkReportCardsModalOpen && (
+        <BulkReportCardModal
+          isOpen={isBulkReportCardsModalOpen}
+          onClose={() => setIsBulkReportCardsModalOpen(false)}
+          students={getEnrichedStudents().filter(
+            (s) => s.classLevel === (selectedLevel?.name || 'JSS 1')
+          )}
+          classLevel={selectedLevel?.name || 'JSS 1'}
+          classArm={selectedArm?.name || 'Diamond'}
+          termName={termName}
+          sessionYear={sessionYear}
+          currentUser={currentUser}
+          onViewSingleReport={(snapshot) => setPreviewReportCard(snapshot)}
+        />
+      )}
+
+      {/* Step 14: Printable Official Report Card Document with Verified QR */}
+      {previewReportCard && (
+        <ReportCardDocumentModal
+          isOpen={!!previewReportCard}
+          onClose={() => setPreviewReportCard(null)}
+          reportCard={previewReportCard}
+          onOpenPublicVerification={onOpenPublicVerification}
         />
       )}
     </div>

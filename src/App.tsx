@@ -47,6 +47,9 @@ import { ClassTimetablePage } from './components/timetable/ClassTimetablePage';
 import { TeacherPersonalTimetablePage } from './components/timetable/TeacherPersonalTimetablePage';
 import { AssessmentSchedulePage } from './components/assessments/AssessmentSchedulePage';
 import { GradebookPage } from './components/gradebook/GradebookPage';
+import { StudentPortalPage } from './components/student-portal/StudentPortalPage';
+import { PublicCredentialVerifyView } from './components/report-cards/PublicCredentialVerifyView';
+import { getReportCardByCredentialUuid } from './lib/report-card-store';
 import { enqueueOfflineAction } from './lib/offline-queue';
 import { getEnrichedStudents } from './lib/students/students-store';
 
@@ -60,6 +63,7 @@ type Tab =
   | 'teacher-timetable'
   | 'assessments'
   | 'gradebook'
+  | 'student-portal'
   | 'data-migration'
   | 'design-system';
 
@@ -113,23 +117,37 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<Tab>('dashboard');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [publicVerifyStudent, setPublicVerifyStudent] = useState<Student | null>(null);
+  const [publicVerificationUuid, setPublicVerificationUuid] = useState<string | null>(() => {
+    const hash = window.location.hash;
+    if (hash.includes('/verify-credential/')) {
+      const parts = hash.split('/verify-credential/');
+      return parts[1]?.split('?')[0] || null;
+    }
+    return null;
+  });
 
   // Check URL for public credential verification hash or query parameter
   useEffect(() => {
     const checkVerificationRoute = () => {
       const hash = window.location.hash;
       const search = window.location.search;
-      if (hash.includes('/verify-credential/') || search.includes('verify=')) {
-        // Find matching student by uuid or id, or select the first student
-        const target = students[0] || null;
-        setPublicVerifyStudent(target);
+      if (hash.includes('/verify-credential/')) {
+        const parts = hash.split('/verify-credential/');
+        const uuid = parts[1]?.split('?')[0] || 'sample-cred-uuid';
+        setPublicVerificationUuid(uuid);
+      } else if (search.includes('verify=')) {
+        const params = new URLSearchParams(search);
+        const uuid = params.get('verify') || 'sample-cred-uuid';
+        setPublicVerificationUuid(uuid);
+      } else {
+        setPublicVerificationUuid(null);
       }
     };
 
     checkVerificationRoute();
     window.addEventListener('hashchange', checkVerificationRoute);
     return () => window.removeEventListener('hashchange', checkVerificationRoute);
-  }, [students]);
+  }, []);
 
   // Global Advance Term Modal State
   const [globalAdvanceModal, setGlobalAdvanceModal] = useState(false);
@@ -215,6 +233,24 @@ export default function App() {
         : `Completed academic year ${sessionYear}`
     );
   };
+
+  if (publicVerificationUuid) {
+    const reportCard = getReportCardByCredentialUuid(publicVerificationUuid);
+    return (
+      <ErrorBoundary>
+        <ThemeProvider>
+          <PublicCredentialVerifyView
+            credentialUuid={publicVerificationUuid}
+            reportCard={reportCard}
+            onBackToApp={() => {
+              window.location.hash = '';
+              setPublicVerificationUuid(null);
+            }}
+          />
+        </ThemeProvider>
+      </ErrorBoundary>
+    );
+  }
 
   return (
     <ErrorBoundary>
@@ -383,6 +419,17 @@ export default function App() {
                   }}
                   badge="Step 12"
                   badgeVariant="success"
+                />
+                <SidebarNavItem
+                  icon={GraduationCap}
+                  label="Student Portal"
+                  isActive={activeTab === 'student-portal'}
+                  onClick={() => {
+                    setActiveTab('student-portal');
+                    setMobileMenuOpen(false);
+                  }}
+                  badge="Results & Feed"
+                  badgeVariant="primary"
                 />
                 <SidebarNavItem
                   icon={UploadCloud}
@@ -556,6 +603,22 @@ export default function App() {
 
               <button
                 type="button"
+                onClick={() => setActiveTab('student-portal')}
+                className={`h-full border-b-2 font-medium flex items-center gap-2 transition-all cursor-pointer ${
+                  activeTab === 'student-portal'
+                    ? 'border-indigo-600 text-indigo-600 dark:border-indigo-400 dark:text-indigo-400 font-bold'
+                    : 'border-transparent text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200'
+                }`}
+              >
+                <GraduationCap className="w-4 h-4" />
+                <span>Student Portal</span>
+                <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-indigo-100 text-indigo-800 dark:bg-indigo-950 dark:text-indigo-300 font-semibold">
+                  Results & Feed
+                </span>
+              </button>
+
+              <button
+                type="button"
                 onClick={() => setActiveTab('data-migration')}
                 className={`h-full border-b-2 font-medium flex items-center gap-2 transition-all cursor-pointer ${
                   activeTab === 'data-migration'
@@ -668,6 +731,21 @@ export default function App() {
                 currentUser={currentUser}
                 onLogAudit={handleLogAudit}
                 onNavigateToAssessments={() => setActiveTab('assessments')}
+                onOpenPublicVerification={(uuid) => {
+                  window.location.hash = `/verify-credential/${uuid}`;
+                  setPublicVerificationUuid(uuid);
+                }}
+              />
+            )}
+
+            {activeTab === 'student-portal' && (
+              <StudentPortalPage
+                students={students}
+                currentUser={currentUser}
+                onOpenPublicVerification={(uuid) => {
+                  window.location.hash = `/verify-credential/${uuid}`;
+                  setPublicVerificationUuid(uuid);
+                }}
               />
             )}
 

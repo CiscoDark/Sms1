@@ -13,6 +13,7 @@ import {
 import { Student, Staff, FeePayment, ClassLevel } from '../../types';
 import { Button, Badge } from '../../design-system';
 import { convertToCSV } from '../../lib/importer/mockDatasetGenerator';
+import { formatNaira } from '../../lib/currency';
 
 interface CommittedDirectoryViewProps {
   students: Student[];
@@ -183,7 +184,7 @@ export const CommittedDirectoryView: React.FC<CommittedDirectoryViewProps> = ({
           <div>
             <div className="text-xs text-slate-500">Recorded Revenue</div>
             <div className="text-xl font-bold text-slate-900 dark:text-slate-100 mt-0.5">
-              ₦{totalFeeCollected.toLocaleString()}
+              {formatNaira(totalFeeCollected)}
             </div>
             <div className="text-[11px] text-slate-400">{fees.length} historical payments</div>
           </div>
@@ -424,7 +425,7 @@ export const CommittedDirectoryView: React.FC<CommittedDirectoryViewProps> = ({
                       <td className="py-2.5 px-4 font-medium">{f.studentName || '-'}</td>
                       <td className="py-2.5 px-4">{f.feeCategory}</td>
                       <td className="py-2.5 px-4 font-bold text-emerald-700 dark:text-emerald-400">
-                        ₦{Number(f.amount).toLocaleString()}
+                        {formatNaira(Number(f.amount))}
                       </td>
                       <td className="py-2.5 px-4">{f.term}</td>
                       <td className="py-2.5 px-4">{f.paymentMethod}</td>

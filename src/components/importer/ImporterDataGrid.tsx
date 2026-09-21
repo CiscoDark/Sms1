@@ -19,6 +19,7 @@ import {
   ValidationError,
 } from '../../types';
 import { Badge, Button, Input } from '../../design-system';
+import { formatNaira } from '../../lib/currency';
 
 interface ImporterDataGridProps {
   entityType: ImportEntityType;
@@ -341,7 +342,7 @@ export const ImporterDataGrid: React.FC<ImporterDataGridProps> = ({
                           <td className="py-2.5 px-3">{fee.feeCategory}</td>
                           <td className="py-2.5 px-3 font-semibold">
                             <span className={amtErr ? 'text-rose-600 font-bold' : ''}>
-                              ₦{Number(fee.amount || 0).toLocaleString()}
+                              {formatNaira(Number(fee.amount || 0))}
                             </span>
                           </td>
                           <td className="py-2.5 px-3">{fee.term}</td>

@@ -14,6 +14,7 @@ import {
   GradingConfiguration,
   GradeBoundary,
   GradebookSummary,
+  CumulativeStudentSubjectRecord,
 } from '../types';
 import { TENANT_SCHOOL_ID } from './class-timetable-store';
 import { getGradingConfig } from './assessment-exam-store';
@@ -42,7 +43,7 @@ export function calculateTotalScore(
 }
 
 /**
- * Evaluate grade boundary, remark, and GPA point
+ * Evaluate grade boundary, remark, and GPA point (Nigerian A1-F9 Standard)
  */
 export function evaluateGradeAndRemark(
   totalScore: number | null,
@@ -66,12 +67,12 @@ export function evaluateGradeAndRemark(
     }
   }
 
-  // Fallback if below minimum boundary
+  // Fallback if below minimum boundary (Nigerian F9)
   if (rounded < passMark) {
-    return { grade: 'F', remark: 'Fail', gpaPoint: 0, color: 'rose' };
+    return { grade: 'F9', remark: 'Fail', gpaPoint: 0, color: 'rose' };
   }
 
-  return { grade: 'C', remark: 'Credit / Pass', gpaPoint: 2.0, color: 'sky' };
+  return { grade: 'C6', remark: 'Credit', gpaPoint: 1.5, color: 'sky' };
 }
 
 /**
@@ -132,7 +133,7 @@ export function computeGradebookSummary(
       highestScore: 0,
       lowestScore: 0,
       passRate: 0,
-      distribution: { A: 0, B: 0, C: 0, D: 0, F: 0 },
+      distribution: { A1: 0, B2: 0, B3: 0, C4: 0, C5: 0, C6: 0, D7: 0, E8: 0, F9: 0 },
     };
   }
 
@@ -144,11 +145,12 @@ export function computeGradebookSummary(
   const passedStudents = gradedRecords.filter((r) => (r.totalScore || 0) >= passMark).length;
   const passRate = Math.round((passedStudents / gradedStudents) * 1000) / 10;
 
-  const distribution = { A: 0, B: 0, C: 0, D: 0, F: 0 };
+  const distribution: Record<string, number> = {
+    A1: 0, B2: 0, B3: 0, C4: 0, C5: 0, C6: 0, D7: 0, E8: 0, F9: 0,
+  };
   for (const r of gradedRecords) {
-    const letter = r.grade as keyof typeof distribution;
-    if (distribution[letter] !== undefined) {
-      distribution[letter]++;
+    if (r.grade) {
+      distribution[r.grade] = (distribution[r.grade] || 0) + 1;
     }
   }
 
@@ -204,8 +206,9 @@ function seedDemoScores(
   config: GradingConfiguration,
   index: number
 ): StudentSubjectGradeRecord {
-  // Deterministic realistic score distribution based on student id
-  const hash = (student.id.charCodeAt(student.id.length - 1) + index * 7) % 35;
+  // Deterministic realistic score distribution based on student id and term progression
+  const termOffset = termName === 'Second Term' ? 4 : termName === 'Third Term' ? 8 : 0;
+  const hash = (student.id.charCodeAt(student.id.length - 1) + index * 7 + termOffset) % 35;
   const ca1 = Math.min(config.ca1Max, Math.max(10, Math.round(13 + (hash % 8))));
   const ca2 = Math.min(config.ca2Max, Math.max(9, Math.round(12 + ((hash + 3) % 9))));
   const exam = Math.min(config.examMax, Math.max(24, Math.round(35 + ((hash * 2) % 25))));
@@ -516,5 +519,179 @@ export function applyPastedScoresToGradebook(
   return {
     updatedRecords: ranked,
     cellsUpdated,
+  };
+}
+
+/**
+ * Nigerian 3rd Term Cumulative Engine:
+ * - 20% to First Term
+ * - 30% to Second Term
+ * - 50% to Third Term
+ *
+ * Formula: Cumulative = (T1 * 0.20) + (T2 * 0.30) + (T3 * 0.50)
+ * Evaluates Nigerian A1 - F9 grade, GPA point, class rank, and promotional recommendation.
+ */
+export function computeCumulativeAnnualResults(
+  term3Records: StudentSubjectGradeRecord[],
+  term1Records: StudentSubjectGradeRecord[],
+  term2Records: StudentSubjectGradeRecord[],
+  config: GradingConfiguration
+): CumulativeStudentSubjectRecord[] {
+  const t1Map = new Map<string, StudentSubjectGradeRecord>();
+  term1Records.forEach((r) => t1Map.set(r.studentId, r));
+
+  const t2Map = new Map<string, StudentSubjectGradeRecord>();
+  term2Records.forEach((r) => t2Map.set(r.studentId, r));
+
+  const t1Weight = (config.cumulativeTerm1Weight ?? 20) / 100;
+  const t2Weight = (config.cumulativeTerm2Weight ?? 30) / 100;
+  const t3Weight = (config.cumulativeTerm3Weight ?? 50) / 100;
+
+  const results: CumulativeStudentSubjectRecord[] = term3Records.map((t3) => {
+    const t1 = t1Map.get(t3.studentId);
+    const t2 = t2Map.get(t3.studentId);
+
+    const s1 = t1?.totalScore ?? null;
+    const s2 = t2?.totalScore ?? null;
+    const s3 = t3.totalScore ?? null;
+
+    const w1 = s1 !== null ? Math.round(s1 * t1Weight * 10) / 10 : null;
+    const w2 = s2 !== null ? Math.round(s2 * t2Weight * 10) / 10 : null;
+    const w3 = s3 !== null ? Math.round(s3 * t3Weight * 10) / 10 : null;
+
+    let cumulativeScore: number | null = null;
+    if (s1 !== null || s2 !== null || s3 !== null) {
+      const activeWeight =
+        (s1 !== null ? t1Weight : 0) +
+        (s2 !== null ? t2Weight : 0) +
+        (s3 !== null ? t3Weight : 0);
+      const rawSum = (w1 || 0) + (w2 || 0) + (w3 || 0);
+      if (activeWeight > 0 && activeWeight < 0.99) {
+        // Normalize if a student missed an earlier term
+        cumulativeScore = Math.round((rawSum / activeWeight) * 10) / 10;
+      } else {
+        cumulativeScore = Math.round(rawSum * 10) / 10;
+      }
+    }
+
+    const evalResult = evaluateGradeAndRemark(cumulativeScore, config.boundaries, config.passMark);
+
+    let promotionStatus: CumulativeStudentSubjectRecord['promotionStatus'] = 'PENDING';
+    let promotionDecision: 'PROMOTED' | 'PROMOTED ON TRIAL' | 'REPEAT' | 'PENDING' = 'PENDING';
+    if (cumulativeScore !== null) {
+      if (cumulativeScore >= config.passMark) {
+        promotionStatus = 'PROMOTED';
+        promotionDecision = 'PROMOTED';
+      } else if (cumulativeScore >= 40) {
+        promotionStatus = 'PROMOTED_ON_TRIAL';
+        promotionDecision = 'PROMOTED ON TRIAL';
+      } else {
+        promotionStatus = 'REPEAT';
+        promotionDecision = 'REPEAT';
+      }
+    }
+
+    return {
+      id: `cum-${t3.studentId}-${t3.subjectCode}-${t3.sessionYear}`,
+      schoolId: TENANT_SCHOOL_ID,
+      studentId: t3.studentId,
+      studentRegNumber: t3.studentRegNumber,
+      studentName: t3.studentName,
+      gender: t3.gender,
+      levelId: t3.levelId,
+      levelName: t3.levelName,
+      armId: t3.armId,
+      armName: t3.armName,
+      subjectCode: t3.subjectCode,
+      subjectName: t3.subjectName,
+      sessionYear: t3.sessionYear,
+      term1Score: s1,
+      term1Weighted: w1,
+      term2Score: s2,
+      term2Weighted: w2,
+      term3Score: s3,
+      term3Weighted: w3,
+      term1TotalScore: s1,
+      term1WeightedScore: w1,
+      term2TotalScore: s2,
+      term2WeightedScore: w2,
+      term3TotalScore: s3,
+      term3WeightedScore: w3,
+      cumulativeScore,
+      cumulativeTotalScore: cumulativeScore,
+      cumulativeGrade: evalResult.grade,
+      cumulativeRemark: evalResult.remark,
+      cumulativeGpaPoint: evalResult.gpaPoint,
+      promotionStatus,
+      promotionDecision,
+      updatedAt: new Date().toISOString(),
+    };
+  });
+
+  // Calculate Standard Competition Ranking ("1224") for Cumulative Scores
+  const valid = results.filter((r) => r.cumulativeScore !== null);
+  valid.sort((a, b) => (b.cumulativeScore || 0) - (a.cumulativeScore || 0));
+
+  const rankMap = new Map<string, number>();
+  let currentRank = 1;
+  for (let i = 0; i < valid.length; i++) {
+    if (i > 0 && valid[i].cumulativeScore === valid[i - 1].cumulativeScore) {
+      rankMap.set(valid[i].id, rankMap.get(valid[i - 1].id) || currentRank);
+    } else {
+      currentRank = i + 1;
+      rankMap.set(valid[i].id, currentRank);
+    }
+  }
+
+  return results.map((r) => ({
+    ...r,
+    cumulativeRankInArm: rankMap.get(r.id),
+  }));
+}
+
+/**
+ * Retrieve or guarantee records for prior terms (First Term & Second Term)
+ * so that when the 3rd term cumulative result is displayed, historical data is available.
+ */
+export function getPriorTermsForSubject(
+  students: Student[],
+  levelId: string,
+  levelName: string,
+  armId: string,
+  armName: string,
+  subjectCode: string,
+  subjectName: string,
+  sessionYear: string = '2024/2025'
+): {
+  term1Records: StudentSubjectGradeRecord[];
+  term2Records: StudentSubjectGradeRecord[];
+} {
+  const term1Records = getOrInitializeClassGradeRecords(
+    students,
+    levelId,
+    levelName,
+    armId,
+    armName,
+    subjectCode,
+    subjectName,
+    sessionYear,
+    'First Term'
+  );
+
+  const term2Records = getOrInitializeClassGradeRecords(
+    students,
+    levelId,
+    levelName,
+    armId,
+    armName,
+    subjectCode,
+    subjectName,
+    sessionYear,
+    'Second Term'
+  );
+
+  return {
+    term1Records,
+    term2Records,
   };
 }

@@ -13,6 +13,7 @@ import {
   AssessmentType,
   StudentExamAnnouncement,
   GradingConfiguration,
+  GradeBoundary,
   UserProfile,
 } from '../types';
 import { TENANT_SCHOOL_ID } from './class-timetable-store';
@@ -20,10 +21,23 @@ import { TENANT_SCHOOL_ID } from './class-timetable-store';
 const ASSESSMENT_STORAGE_KEY = `sms_assessment_schedules_${TENANT_SCHOOL_ID}`;
 const GRADING_CONFIG_STORAGE_KEY = `sms_grading_config_${TENANT_SCHOOL_ID}`;
 
+export const NIGERIAN_A1_F9_BOUNDARIES: GradeBoundary[] = [
+  { grade: 'A1', minScore: 75, maxScore: 100, remark: 'Excellent / Distinction', gpaPoint: 4.0, color: 'emerald' },
+  { grade: 'B2', minScore: 70, maxScore: 74, remark: 'Very Good', gpaPoint: 3.5, color: 'emerald' },
+  { grade: 'B3', minScore: 65, maxScore: 69, remark: 'Good', gpaPoint: 3.0, color: 'indigo' },
+  { grade: 'C4', minScore: 60, maxScore: 64, remark: 'Credit', gpaPoint: 2.5, color: 'sky' },
+  { grade: 'C5', minScore: 55, maxScore: 59, remark: 'Credit', gpaPoint: 2.0, color: 'sky' },
+  { grade: 'C6', minScore: 50, maxScore: 54, remark: 'Credit', gpaPoint: 1.5, color: 'sky' },
+  { grade: 'D7', minScore: 45, maxScore: 49, remark: 'Pass', gpaPoint: 1.0, color: 'amber' },
+  { grade: 'E8', minScore: 40, maxScore: 44, remark: 'Pass', gpaPoint: 0.5, color: 'amber' },
+  { grade: 'F9', minScore: 0, maxScore: 39, remark: 'Fail', gpaPoint: 0.0, color: 'rose' },
+];
+
 export const DEFAULT_GRADING_CONFIG: GradingConfiguration = {
   schoolId: TENANT_SCHOOL_ID,
   sessionYear: '2024/2025',
   termName: 'First Term',
+  systemTitle: 'Nigerian Secondary School Standard (A1 - F9)',
   ca1Name: 'Continuous Assessment 1 (CA 1)',
   ca1Max: 20,
   ca2Name: 'Mid-Term Test (CA 2)',
@@ -34,13 +48,11 @@ export const DEFAULT_GRADING_CONFIG: GradingConfiguration = {
   examMax: 60,
   totalMax: 100,
   passMark: 50,
-  boundaries: [
-    { grade: 'A', minScore: 75, maxScore: 100, remark: 'Distinction / Excellent', gpaPoint: 4.0, color: 'emerald' },
-    { grade: 'B', minScore: 65, maxScore: 74, remark: 'Very Good / Credit', gpaPoint: 3.0, color: 'indigo' },
-    { grade: 'C', minScore: 50, maxScore: 64, remark: 'Credit / Satisfactory', gpaPoint: 2.0, color: 'sky' },
-    { grade: 'D', minScore: 40, maxScore: 49, remark: 'Pass', gpaPoint: 1.0, color: 'amber' },
-    { grade: 'F', minScore: 0, maxScore: 39, remark: 'Fail', gpaPoint: 0.0, color: 'rose' },
-  ],
+  // 3rd term cumulative result: 20% to first term, 30% to second term, 50% to third term
+  cumulativeTerm1Weight: 20,
+  cumulativeTerm2Weight: 30,
+  cumulativeTerm3Weight: 50,
+  boundaries: NIGERIAN_A1_F9_BOUNDARIES,
   isLocked: false,
   updatedAt: new Date().toISOString(),
 };
@@ -367,7 +379,35 @@ export function getGradingConfig(): GradingConfiguration {
       return DEFAULT_GRADING_CONFIG;
     }
     const parsed = JSON.parse(raw);
-    return parsed.schoolId === TENANT_SCHOOL_ID ? parsed : DEFAULT_GRADING_CONFIG;
+    if (parsed.schoolId !== TENANT_SCHOOL_ID) {
+      saveGradingConfig(DEFAULT_GRADING_CONFIG);
+      return DEFAULT_GRADING_CONFIG;
+    }
+
+    // Auto-migrate legacy 5-boundary schema (A, B, C, D, F) to Nigerian Secondary School A1-F9 standard
+    const hasA1 = parsed.boundaries && parsed.boundaries.some((b: GradeBoundary) => b.grade === 'A1');
+    if (!hasA1) {
+      const migrated: GradingConfiguration = {
+        ...DEFAULT_GRADING_CONFIG,
+        ...parsed,
+        systemTitle: parsed.systemTitle || 'Nigerian Secondary School Standard (A1 - F9)',
+        boundaries: NIGERIAN_A1_F9_BOUNDARIES,
+        cumulativeTerm1Weight: parsed.cumulativeTerm1Weight ?? 20,
+        cumulativeTerm2Weight: parsed.cumulativeTerm2Weight ?? 30,
+        cumulativeTerm3Weight: parsed.cumulativeTerm3Weight ?? 50,
+      };
+      saveGradingConfig(migrated);
+      return migrated;
+    }
+
+    return {
+      ...DEFAULT_GRADING_CONFIG,
+      ...parsed,
+      boundaries: parsed.boundaries || NIGERIAN_A1_F9_BOUNDARIES,
+      cumulativeTerm1Weight: parsed.cumulativeTerm1Weight ?? 20,
+      cumulativeTerm2Weight: parsed.cumulativeTerm2Weight ?? 30,
+      cumulativeTerm3Weight: parsed.cumulativeTerm3Weight ?? 50,
+    };
   } catch {
     return DEFAULT_GRADING_CONFIG;
   }

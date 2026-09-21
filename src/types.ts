@@ -519,6 +519,7 @@ export interface GradingConfiguration {
   schoolId: string;
   sessionYear: string;
   termName: string;
+  systemTitle?: string; // e.g. "Nigerian Secondary School Standard (A1-F9)"
   ca1Name: string;
   ca1Max: number; // e.g. 20
   ca2Name: string;
@@ -529,9 +530,14 @@ export interface GradingConfiguration {
   examMax: number; // e.g. 60
   totalMax: number; // 100
   passMark: number; // e.g. 50
+  // Nigerian 3rd Term Cumulative Weightings: 20% 1st Term, 30% 2nd Term, 50% 3rd Term
+  cumulativeTerm1Weight: number; // Default 20 (%)
+  cumulativeTerm2Weight: number; // Default 30 (%)
+  cumulativeTerm3Weight: number; // Default 50 (%)
   boundaries: GradeBoundary[];
   isLocked: boolean;
   updatedAt: string;
+  updatedBy?: string;
 }
 
 export interface StudentSubjectGradeRecord {
@@ -565,6 +571,45 @@ export interface StudentSubjectGradeRecord {
   updatedBy: string;
 }
 
+export interface CumulativeStudentSubjectRecord {
+  id: string;
+  schoolId: string;
+  studentId: string;
+  studentRegNumber: string;
+  studentName: string;
+  gender: 'M' | 'F';
+  levelId: string;
+  levelName: string;
+  armId: string;
+  armName: string;
+  subjectCode: string;
+  subjectName: string;
+  sessionYear: string;
+  // Term breakdowns
+  term1Score: number | null;
+  term1Weighted: number | null; // e.g. 20% of T1
+  term2Score: number | null;
+  term2Weighted: number | null; // e.g. 30% of T2
+  term3Score: number | null;
+  term3Weighted: number | null; // e.g. 50% of T3
+  term1TotalScore?: number | null;
+  term1WeightedScore?: number | null;
+  term2TotalScore?: number | null;
+  term2WeightedScore?: number | null;
+  term3TotalScore?: number | null;
+  term3WeightedScore?: number | null;
+  // Cumulative totals
+  cumulativeScore: number | null; // Total out of 100%
+  cumulativeTotalScore?: number | null;
+  cumulativeGrade: string; // A1 - F9
+  cumulativeRemark: string;
+  cumulativeGpaPoint: number;
+  cumulativeRankInArm?: number;
+  promotionStatus: 'PROMOTED' | 'PROMOTED_ON_TRIAL' | 'REPEAT' | 'PENDING';
+  promotionDecision?: 'PROMOTED' | 'PROMOTED ON TRIAL' | 'REPEAT' | 'PENDING';
+  updatedAt: string;
+}
+
 export interface GradebookSummary {
   totalStudents: number;
   gradedStudents: number;
@@ -572,13 +617,111 @@ export interface GradebookSummary {
   highestScore: number;
   lowestScore: number;
   passRate: number; // percentage
-  distribution: {
-    A: number;
-    B: number;
-    C: number;
-    D: number;
-    F: number;
-  };
+  distribution: Record<string, number>;
+}
+
+// STEP 13 & STEP 14: Report Card Snapshots, Verification & Student Portal Types
+export interface SubjectScoreSnapshot {
+  subjectCode: string;
+  subjectName: string;
+  ca1Score: number | null; // e.g. / 20
+  ca2Score: number | null; // e.g. / 20
+  examScore: number | null; // e.g. / 60
+  totalScore: number | null; // e.g. / 100
+  grade: string; // e.g. 'A1', 'B2', 'C4', etc.
+  remark: string; // e.g. 'Distinction', 'Credit'
+  gpaPoint: number;
+  classAverage?: number;
+  highestInClass?: number;
+  lowestInClass?: number;
+}
+
+export interface PsychomotorAssessment {
+  neatness: number; // 1 - 5
+  punctuality: number; // 1 - 5
+  politeness: number; // 1 - 5
+  leadership: number; // 1 - 5
+  attentiveness: number; // 1 - 5
+  sportsmanship: number; // 1 - 5
+  honesty: number; // 1 - 5
+}
+
+export interface ReportCardSnapshot {
+  id: string; // Unique snapshot ID
+  credentialUuid: string; // Public QR verification UUID (e.g. cred-studentId-term-hash)
+  schoolId: string; // 'school-apex-001' (Tenant Isolation Invariant)
+  schoolName: string;
+  studentId: string;
+  studentRegNumber: string;
+  studentName: string;
+  gender: 'M' | 'F';
+  avatarUrl?: string;
+  classLevel: string; // e.g. 'JSS 1'
+  classArm: string; // FROZEN snapshot of arm name at publish time e.g. 'Diamond' (Temporal Immutability Invariant)
+  sessionYear: string; // e.g. '2024/2025'
+  termName: string; // 'First Term' | 'Second Term' | 'Third Term'
+  subjects: SubjectScoreSnapshot[];
+  totalScore: number;
+  totalMaxScore: number;
+  averagePercentage: number;
+  overallGrade: string; // 'A1' - 'F9'
+  overallGpa: number;
+  positionInArm: number;
+  totalInArm: number;
+  classAverage: number;
+  attendanceRate: number;
+  daysPresent: number;
+  totalDays: number;
+  // Financial status at publish moment (strictly private, NEVER exposed to public QR)
+  feeStatus: 'CLEARED' | 'PARTIAL' | 'OUTSTANDING';
+  feeBalance: number;
+  feeStatusText: string;
+  // Remarks & Sign-offs
+  teacherRemarks: string;
+  teacherSignedOff: boolean;
+  teacherSignedAt?: string;
+  teacherName?: string;
+  isAiDrafted?: boolean;
+  principalRemarks: string;
+  principalSigned: boolean;
+  principalSignedAt?: string;
+  principalName?: string;
+  nextTermBegins?: string;
+  promotionDecision?: 'PROMOTED' | 'PROMOTED ON TRIAL' | 'REPEAT' | 'N/A';
+  psychomotor: PsychomotorAssessment;
+  publishedAt: string;
+  publishedBy: string;
+  isPublished: boolean;
+}
+
+export interface DisciplinaryRecord {
+  id: string;
+  studentId: string;
+  studentName: string;
+  studentRegNumber: string;
+  incidentDate: string;
+  incidentTitle: string;
+  description: string;
+  severity: 'MINOR' | 'MODERATE' | 'SERIOUS';
+  actionTaken: string;
+  isPrivate: boolean; // NEVER shown to classmates or public QR verification
+  recordedBy: string;
+  createdAt: string;
+}
+
+export interface StudentAnnouncementItem {
+  id: string;
+  title: string;
+  content: string;
+  scope: 'SCHOOL_WIDE' | 'CLASS_LEVEL' | 'CLASS_ARM';
+  targetLevel?: string;
+  targetArm?: string;
+  category: 'ACADEMIC' | 'EVENT' | 'EXAM' | 'ADMINISTRATIVE' | 'EMERGENCY';
+  authorName: string;
+  authorRole: string;
+  createdAt: string;
+  isPinned?: boolean;
+  readBy?: string[]; // studentIds that marked as read
 }
 
 
