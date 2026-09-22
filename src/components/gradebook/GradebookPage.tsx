@@ -270,7 +270,9 @@ export const GradebookPage: React.FC<GradebookPageProps> = ({
 
   const handleConflictResolved = (resolved: CellConflict) => {
     if (selectedLevel && selectedArm) {
+      const allStudents = getEnrichedStudents();
       const refreshed = getOrInitializeClassGradeRecords(
+        allStudents,
         selectedLevel.id,
         selectedLevel.name,
         selectedArm.id,

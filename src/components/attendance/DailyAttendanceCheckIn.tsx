@@ -33,6 +33,7 @@ import {
   getActiveConflicts,
   getConflictForAttendance,
   simulateAttendanceConflict,
+  enqueueOfflineAction,
   subscribeConflictChanges,
   subscribeNetworkStatus,
   subscribeQueueChanges,
@@ -310,6 +311,27 @@ export const DailyAttendanceCheckIn: React.FC<DailyAttendanceCheckInProps> = ({
         recordsToSave,
         currentUser
       );
+
+      // If offline, enqueue into persistent write queue
+      if (!isAppOnline()) {
+        enqueueOfflineAction(
+          '/api/attendance/register',
+          'POST',
+          {
+            date: selectedDate,
+            classLevel: selectedLevelName,
+            classArm: selectedArmName,
+            records: recordsToSave,
+          },
+          `Offline attendance register for ${selectedLevelName} ${selectedArmName} on ${selectedDate} (${recordsToSave.length} students)`,
+          {
+            actionType: 'ATTENDANCE_REGISTER_SAVE',
+            entityId: `att-${selectedLevelName}-${selectedArmName}-${selectedDate}`,
+            performerName: currentUser.name,
+            performerRole: currentUser.role,
+          }
+        );
+      }
 
       onLogAudit(
         'ATTENDANCE_MARKED',

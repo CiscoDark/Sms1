@@ -124,7 +124,7 @@ export const OfflineQueueDrawer: React.FC<OfflineQueueDrawerProps> = ({
   };
 
   return (
-    <Drawer isOpen={isOpen} onClose={onClose} title="Offline Sync & Write Queue" size="md">
+    <Drawer isOpen={isOpen} onClose={onClose} title="Offline Sync & Write Queue" width="xl">
       <div className="space-y-6">
         {/* Network Status & Offline Simulation Card */}
         <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/60">
@@ -184,8 +184,8 @@ export const OfflineQueueDrawer: React.FC<OfflineQueueDrawerProps> = ({
             <Button
               variant="primary"
               size="sm"
-              icon={RefreshCw}
-              loading={isSyncing}
+              leftIcon={<RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin' : ''}`} />}
+              isLoading={isSyncing}
               disabled={!isOnline || queue.length === 0}
               onClick={handleTriggerSync}
             >
@@ -196,7 +196,7 @@ export const OfflineQueueDrawer: React.FC<OfflineQueueDrawerProps> = ({
               <Button
                 variant="outline"
                 size="sm"
-                icon={Trash2}
+                leftIcon={<Trash2 className="w-3.5 h-3.5" />}
                 onClick={handleClearAllQueue}
               >
                 Clear Queue

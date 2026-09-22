@@ -20,6 +20,7 @@ export interface UserProfile {
   linkedStudentIds?: string[];
   assignedClassLevel?: string;
   assignedClassArm?: string;
+  schoolId?: string; // Tenant isolation key
 }
 
 export type SessionStatus = 'ACTIVE' | 'UPCOMING' | 'COMPLETED';
@@ -139,6 +140,7 @@ export interface AuditLog {
 export type OfflineQueueActionType =
   | 'GRADEBOOK_SCORE_UPDATE'
   | 'ATTENDANCE_REGISTER_SAVE'
+  | 'ATTENDANCE_RECORD'
   | 'GENERAL_MUTATION';
 
 export interface OfflineQueueItem {

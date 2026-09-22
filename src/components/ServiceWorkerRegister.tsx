@@ -75,6 +75,7 @@ export const ServiceWorkerRegister: React.FC<ServiceWorkerRegisterProps> = ({
         name: 'Auto-Sync Worker',
         email: 'sync@apexhorizon.edu.ng',
         role: 'SUPER_ADMIN',
+        title: 'System Daemon',
         schoolId: 'school-apex-001',
       };
       await processOfflineSync(fallbackUser);
@@ -97,6 +98,7 @@ export const ServiceWorkerRegister: React.FC<ServiceWorkerRegisterProps> = ({
         name: 'Active Staff',
         email: 'staff@apexhorizon.edu.ng',
         role: 'TEACHER',
+        title: 'Subject Instructor',
         schoolId: 'school-apex-001',
       };
       const result = await processOfflineSync(userToUse);
@@ -246,7 +248,8 @@ export const ServiceWorkerRegister: React.FC<ServiceWorkerRegisterProps> = ({
             id: 'usr-admin-default',
             name: 'School Administrator',
             email: 'admin@apexhorizon.edu.ng',
-            role: 'ADMIN',
+            role: 'SUPER_ADMIN',
+            title: 'School Administrator',
             schoolId: 'school-apex-001',
           }
         }
