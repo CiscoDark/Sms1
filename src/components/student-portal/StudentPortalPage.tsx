@@ -20,13 +20,20 @@ import {
   Eye,
   Megaphone,
   BookOpen,
+  CreditCard,
+  Receipt,
+  Lock,
 } from 'lucide-react';
-import { Student, ReportCardSnapshot, StudentAnnouncementItem, UserProfile } from '../../types';
+import { Student, ReportCardSnapshot, StudentAnnouncementItem, UserProfile, PaymentGatewayType } from '../../types';
 import { Button } from '../../design-system/components/Button';
 import { Badge } from '../../design-system/components/Badge';
 import { getAllPublishedReportCards } from '../../lib/report-card-store';
 import { getAnnouncements, markAnnouncementAsRead } from '../../lib/announcements-store';
 import { ReportCardDocumentModal } from '../report-cards/ReportCardDocumentModal';
+import { getStudentFeeAccount, recordStudentPayment, getAllFeeStructures } from '../../lib/fee-store';
+import { formatNaira } from '../../lib/currency';
+import { PaymentProgressRing } from '../finance/PaymentProgressRing';
+import { PaymentCaptureModal } from '../finance/PaymentCaptureModal';
 
 interface StudentPortalPageProps {
   students: Student[];
@@ -44,7 +51,7 @@ export const StudentPortalPage: React.FC<StudentPortalPageProps> = ({
     students[0]?.id || 'std-001'
   );
 
-  const [activeTab, setActiveTab] = useState<'results' | 'announcements' | 'timetable'>('results');
+  const [activeTab, setActiveTab] = useState<'results' | 'announcements' | 'timetable' | 'fees'>('results');
   const [announcementFilter, setAnnouncementFilter] = useState<'ALL' | 'SCHOOL_WIDE' | 'CLASS_LEVEL' | 'ACADEMIC'>('ALL');
   const [searchAnnouncements, setSearchAnnouncements] = useState('');
 
@@ -56,6 +63,30 @@ export const StudentPortalPage: React.FC<StudentPortalPageProps> = ({
   const allReportCards = getAllPublishedReportCards();
   const studentReportCards = allReportCards.filter((rc) => rc.studentId === activeStudent?.id);
   const [announcements, setAnnouncements] = useState<StudentAnnouncementItem[]>(() => getAnnouncements());
+
+  // Student Fee Account state & modal
+  const [feeAccount, setFeeAccount] = useState(() =>
+    activeStudent ? getStudentFeeAccount(activeStudent.id) : null
+  );
+  const [isPayModalOpen, setIsPayModalOpen] = useState(false);
+
+  React.useEffect(() => {
+    if (activeStudent) {
+      setFeeAccount(getStudentFeeAccount(activeStudent.id));
+    }
+  }, [activeStudent?.id]);
+
+  const allStructures = getAllFeeStructures();
+  const studentFeeStructure = allStructures.find(
+    (s) => s.classLevelName === activeStudent?.classLevel
+  ) || allStructures[0];
+
+  const handleCommitPortalPayment = (paymentData: any) => {
+    const res = recordStudentPayment(paymentData);
+    if (res.success && res.updatedAccount) {
+      setFeeAccount(res.updatedAccount);
+    }
+  };
 
   // Mark announcement as read
   const handleToggleRead = (annId: string) => {
@@ -236,6 +267,29 @@ export const StudentPortalPage: React.FC<StudentPortalPageProps> = ({
         >
           <Calendar className="w-4 h-4" />
           <span>Class Timetable (View-Only)</span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab('fees')}
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all ${
+            activeTab === 'fees'
+              ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/20'
+              : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
+          }`}
+        >
+          <CreditCard className="w-4 h-4" />
+          <span>Tuition & Fees</span>
+          {feeAccount && (
+            <span
+              className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold ${
+                feeAccount.percentagePaid >= 100
+                  ? 'bg-emerald-500 text-white'
+                  : 'bg-amber-500 text-white'
+              }`}
+            >
+              {feeAccount.percentagePaid}%
+            </span>
+          )}
         </button>
       </div>
 
@@ -574,6 +628,208 @@ export const StudentPortalPage: React.FC<StudentPortalPageProps> = ({
             </table>
           </div>
         </div>
+      )}
+
+      {/* Tab 4: Tuition & Fees Ledger */}
+      {activeTab === 'fees' && feeAccount && (
+        <div className="space-y-6">
+          {/* Privacy Note */}
+          <div className="p-4 rounded-2xl bg-indigo-50/70 dark:bg-indigo-950/30 border border-indigo-100 dark:border-indigo-900/50 flex items-center justify-between gap-3 text-xs">
+            <div className="flex items-center gap-2 text-indigo-900 dark:text-indigo-200 font-medium">
+              <Lock className="w-4 h-4 text-indigo-600 shrink-0" />
+              <span>
+                <strong>Confidential Financial Ledger:</strong> Fees and payment transactions are strictly private to this student account and are permanently sanitized from the public verification QR endpoint (Invariant #4).
+              </span>
+            </div>
+            <Badge variant="primary" size="sm">
+              Protected
+            </Badge>
+          </div>
+
+          {/* Fee Overview Card */}
+          <div className="p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs">
+            <div className="flex flex-wrap items-center justify-between gap-6">
+              <div className="flex items-center gap-5">
+                <PaymentProgressRing
+                  percentage={feeAccount.percentagePaid}
+                  size="lg"
+                  strokeWidth={6}
+                />
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-xl font-black text-slate-900 dark:text-white">
+                      {feeAccount.percentagePaid}% Paid
+                    </h3>
+                    <Badge
+                      variant={
+                        feeAccount.status === 'CLEARED'
+                          ? 'success'
+                          : feeAccount.status === 'PARTIAL'
+                          ? 'warning'
+                          : 'danger'
+                      }
+                      size="sm"
+                    >
+                      {feeAccount.status}
+                    </Badge>
+                  </div>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    {feeAccount.sessionYear} • {feeAccount.termName} • {feeAccount.classLevel}
+                  </p>
+                </div>
+              </div>
+
+              {/* Financial Numbers */}
+              <div className="flex items-center gap-6">
+                <div>
+                  <div className="text-[10px] uppercase font-bold text-slate-400">Total Billed</div>
+                  <div className="text-base font-mono font-bold text-slate-800 dark:text-slate-200">
+                    {formatNaira(feeAccount.totalBilled)}
+                  </div>
+                </div>
+
+                <div className="w-px h-10 bg-slate-200 dark:bg-slate-700" />
+
+                <div>
+                  <div className="text-[10px] uppercase font-bold text-emerald-600 dark:text-emerald-400">
+                    Paid to Date
+                  </div>
+                  <div className="text-base font-mono font-bold text-emerald-600 dark:text-emerald-400">
+                    {formatNaira(feeAccount.totalPaid)}
+                  </div>
+                </div>
+
+                <div className="w-px h-10 bg-slate-200 dark:bg-slate-700" />
+
+                <div>
+                  <div className="text-[10px] uppercase font-bold text-rose-500">
+                    Remaining Balance
+                  </div>
+                  <div className="text-lg font-mono font-black text-rose-600 dark:text-rose-400">
+                    {formatNaira(feeAccount.balanceDue)}
+                  </div>
+                </div>
+
+                <div>
+                  <Button
+                    variant="primary"
+                    size="md"
+                    className="gap-2"
+                    onClick={() => setIsPayModalOpen(true)}
+                  >
+                    <CreditCard className="w-4 h-4" />
+                    <span>Make Payment</span>
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Itemized Structure Breakdown */}
+          {studentFeeStructure && (
+            <div className="p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs space-y-3">
+              <h4 className="font-bold text-sm text-slate-900 dark:text-white flex items-center gap-2">
+                <Receipt className="w-4 h-4 text-indigo-600" />
+                <span>Approved Fee Schedule Breakdown ({activeStudent.classLevel})</span>
+              </h4>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                {studentFeeStructure.items.map((it) => (
+                  <div
+                    key={it.id}
+                    className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700/60"
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-xs text-slate-800 dark:text-slate-200">
+                        {it.name}
+                      </span>
+                      <span className="font-mono font-bold text-xs text-indigo-600 dark:text-indigo-400">
+                        {formatNaira(it.amount)}
+                      </span>
+                    </div>
+                    {it.description && (
+                      <p className="text-[10px] text-slate-500 mt-1 line-clamp-2">
+                        {it.description}
+                      </p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Payment Receipts History */}
+          <div className="p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs space-y-4">
+            <h4 className="font-bold text-sm text-slate-900 dark:text-white flex items-center gap-2">
+              <Receipt className="w-4 h-4 text-emerald-600" />
+              <span>Official Payment Receipts ({feeAccount.payments.length})</span>
+            </h4>
+
+            <div className="space-y-2.5">
+              {feeAccount.payments.map((p) => (
+                <div
+                  key={p.id}
+                  className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700/60 flex flex-wrap items-center justify-between gap-3 text-xs"
+                >
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-mono font-bold text-sm text-slate-900 dark:text-white">
+                        {formatNaira(p.amount)}
+                      </span>
+                      <Badge
+                        variant={
+                          p.channel === 'PAYSTACK'
+                            ? 'primary'
+                            : p.channel === 'FLUTTERWAVE'
+                            ? 'warning'
+                            : 'neutral'
+                        }
+                        size="sm"
+                      >
+                        {p.channel.replace('_', ' ')}
+                      </Badge>
+                      <Badge variant="success" size="sm">
+                        Verified
+                      </Badge>
+                    </div>
+                    <div className="font-mono text-[11px] text-slate-400 mt-0.5">
+                      Ref: {p.transactionReference} • Paid on {p.paymentDate}
+                    </div>
+                    {p.notes && (
+                      <div className="text-[11px] text-slate-600 dark:text-slate-300 italic mt-0.5">
+                        "{p.notes}"
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="text-right">
+                    <span className="text-[10px] text-slate-400 block">Payer</span>
+                    <span className="font-semibold text-slate-700 dark:text-slate-300">
+                      {p.payerName}
+                    </span>
+                  </div>
+                </div>
+              ))}
+
+              {feeAccount.payments.length === 0 && (
+                <div className="p-6 text-center text-slate-400 text-xs">
+                  No payment transactions recorded yet. Click "Make Payment" above to pay via Paystack or bank transfer.
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Payment Capture Modal for Student Portal */}
+      {isPayModalOpen && feeAccount && (
+        <PaymentCaptureModal
+          isOpen={isPayModalOpen}
+          onClose={() => setIsPayModalOpen(false)}
+          account={feeAccount}
+          onRecordPayment={handleCommitPortalPayment}
+          currentUser={currentUser}
+        />
       )}
 
       {/* Official Report Card PDF Modal */}

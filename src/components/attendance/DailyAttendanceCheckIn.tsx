@@ -12,6 +12,8 @@ import {
   ChevronRight,
   Sparkles,
   SlidersHorizontal,
+  AlertTriangle,
+  WifiOff,
 } from 'lucide-react';
 import {
   AttendanceRecord,
@@ -19,11 +21,23 @@ import {
   ClassLevel,
   Student,
   UserProfile,
+  CellConflict,
 } from '../../types';
 import {
   getAttendanceForClassAndDate,
   saveClassAttendanceRegister,
 } from '../../lib/attendance/attendance-store';
+import {
+  isAppOnline,
+  getOfflineQueue,
+  getActiveConflicts,
+  getConflictForAttendance,
+  simulateAttendanceConflict,
+  subscribeConflictChanges,
+  subscribeNetworkStatus,
+  subscribeQueueChanges,
+} from '../../lib/offline-queue';
+import { InlineConflictDiffBadge } from '../offline/InlineConflictDiffBadge';
 import { Button } from '../../design-system/components/Button';
 import { Badge } from '../../design-system/components/Badge';
 import { Input } from '../../design-system/components/Input';
@@ -80,6 +94,63 @@ export const DailyAttendanceCheckIn: React.FC<DailyAttendanceCheckInProps> = ({
 
   // Local map of studentId -> AttendanceRecord draft
   const [attendanceDraft, setAttendanceDraft] = useState<Map<string, AttendanceRecord>>(new Map());
+
+  // Offline Sync & Conflict State
+  const [isOnline, setIsOnline] = useState<boolean>(() => isAppOnline());
+  const [queueCount, setQueueCount] = useState<number>(() => getOfflineQueue().length);
+  const [conflicts, setConflicts] = useState<CellConflict[]>(() => getActiveConflicts());
+
+  useEffect(() => {
+    const unsubNet = subscribeNetworkStatus((online) => setIsOnline(online));
+    const unsubQueue = subscribeQueueChanges(() => setQueueCount(getOfflineQueue().length));
+    const unsubConflicts = subscribeConflictChanges(() => setConflicts(getActiveConflicts()));
+    return () => {
+      unsubNet();
+      unsubQueue();
+      unsubConflicts();
+    };
+  }, []);
+
+  const handleConflictResolved = (resolved: CellConflict) => {
+    const existing = getAttendanceForClassAndDate(selectedLevelName, selectedArmName, selectedDate);
+    const draftMap = new Map<string, AttendanceRecord>();
+    existing.forEach((r) => draftMap.set(r.studentId, r));
+    setAttendanceDraft(draftMap);
+    setConflicts(getActiveConflicts());
+    onLogAudit(
+      'SYNC_CONFLICT_RESOLVED',
+      `Resolved attendance sync conflict for ${resolved.studentName} selecting: ${resolved.resolvedChoice}`
+    );
+  };
+
+  const handleSimulateConflict = () => {
+    if (classStudents.length === 0) return;
+    const targetStudent = classStudents[0];
+    const rec = attendanceDraft.get(targetStudent.id) || {
+      id: `att-${targetStudent.id}-${selectedDate}`,
+      studentId: targetStudent.id,
+      studentName: `${targetStudent.firstName} ${targetStudent.lastName}`,
+      admissionNumber: targetStudent.admissionNumber,
+      classLevel: selectedLevelName,
+      classArm: selectedArmName,
+      date: selectedDate,
+      status: 'PRESENT' as const,
+      markedBy: currentUser.name,
+      markedAt: new Date().toISOString(),
+    };
+    simulateAttendanceConflict(rec, {
+      localStatus: 'LATE',
+      remoteStatus: 'EXCUSED',
+      localAuthor: `${currentUser.name} (Form Tutor - Tablet Offline)`,
+      remoteAuthor: 'Sister Comfort (School Clinic Nurse - Web Portal)',
+    });
+    setConflicts(getActiveConflicts());
+    setQueueCount(getOfflineQueue().length);
+    onLogAudit(
+      'SYNC_CONFLICT_SIMULATED',
+      `Simulated attendance sync conflict for ${rec.studentName} on ${selectedDate} (Offline: LATE vs Server: EXCUSED)`
+    );
+  };
 
   // Load existing records or default all to PRESENT when class or date changes
   useEffect(() => {
@@ -395,7 +466,39 @@ export const DailyAttendanceCheckIn: React.FC<DailyAttendanceCheckInProps> = ({
         </div>
 
         {/* Action Controls */}
-        <div className="flex items-center gap-2.5 w-full sm:w-auto justify-end">
+        <div className="flex items-center gap-2.5 w-full sm:w-auto justify-end flex-wrap">
+          {/* Offline Sync State Pill */}
+          {!isOnline ? (
+            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-50 dark:bg-amber-950/50 border border-amber-300 dark:border-amber-800 text-xs font-semibold text-amber-700 dark:text-amber-300">
+              <WifiOff className="w-3.5 h-3.5 text-amber-500 animate-pulse" />
+              <span>Offline Mode ({queueCount} Queued)</span>
+            </div>
+          ) : queueCount > 0 ? (
+            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-indigo-50 dark:bg-indigo-950/50 border border-indigo-200 dark:border-indigo-800 text-xs font-semibold text-indigo-600 dark:text-indigo-400">
+              <Clock className="w-3.5 h-3.5 animate-spin" />
+              <span>{queueCount} Pending Sync</span>
+            </div>
+          ) : null}
+
+          {/* Active Conflicts Indicator */}
+          {conflicts.length > 0 && (
+            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-rose-50 dark:bg-rose-950/60 border border-rose-300 dark:border-rose-800 text-xs font-bold text-rose-700 dark:text-rose-300 animate-pulse">
+              <AlertTriangle className="w-3.5 h-3.5 text-rose-600" />
+              <span>{conflicts.length} Attendance Conflict(s)</span>
+            </div>
+          )}
+
+          {/* Simulate Conflict Test Button */}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleSimulateConflict}
+            leftIcon={<AlertTriangle className="w-3.5 h-3.5 text-amber-500" />}
+            title="Simulate an attendance sync conflict to test inline diff badge"
+          >
+            Simulate Attendance Conflict
+          </Button>
+
           <Button
             variant="outline"
             size="sm"
@@ -442,117 +545,144 @@ export const DailyAttendanceCheckIn: React.FC<DailyAttendanceCheckInProps> = ({
             {filteredStudents.map((student, idx) => {
               const rec = attendanceDraft.get(student.id);
               const currentStatus = rec?.status || 'PRESENT';
+              const attConflict = conflicts.find(
+                (c) =>
+                  c.entityType === 'ATTENDANCE' &&
+                  (c.recordId === student.id || c.recordId === rec?.id || c.studentId === student.id)
+              );
 
               return (
                 <div
                   key={student.id}
-                  className="px-5 py-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-slate-50/60 dark:hover:bg-slate-800/40 transition-colors"
+                  className={`px-5 py-3.5 flex flex-col justify-between gap-3 hover:bg-slate-50/60 dark:hover:bg-slate-800/40 transition-colors ${
+                    attConflict
+                      ? 'bg-rose-50/40 dark:bg-rose-950/20 border-l-4 border-l-rose-500'
+                      : ''
+                  }`}
                 >
-                  {/* Left Student Info */}
-                  <div className="flex items-center gap-3">
-                    <span className="text-xs font-bold text-slate-400 w-6 text-right">
-                      {idx + 1}.
-                    </span>
-                    <div className="w-9 h-9 rounded-full bg-indigo-100 dark:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300 font-bold flex items-center justify-center text-xs shrink-0">
-                      {student.firstName[0]}
-                      {student.lastName[0]}
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    {/* Left Student Info */}
+                    <div className="flex items-center gap-3">
+                      <span className="text-xs font-bold text-slate-400 w-6 text-right">
+                        {idx + 1}.
+                      </span>
+                      <div className="w-9 h-9 rounded-full bg-indigo-100 dark:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300 font-bold flex items-center justify-center text-xs shrink-0">
+                        {student.firstName[0]}
+                        {student.lastName[0]}
+                      </div>
+                      <div>
+                        <div className="text-sm font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                          <span>{student.firstName} {student.lastName}</span>
+                          {attConflict && (
+                            <Badge variant="danger" size="sm">
+                              Conflict Pending Review
+                            </Badge>
+                          )}
+                        </div>
+                        <div className="text-xs text-slate-400 flex items-center gap-2">
+                          <span className="font-mono text-slate-500 dark:text-slate-400">
+                            {student.admissionNumber}
+                          </span>
+                          <span>•</span>
+                          <span>{student.gender === 'M' ? 'Male' : 'Female'}</span>
+                          {rec?.arrivalTime && currentStatus === 'LATE' && (
+                            <>
+                              <span>•</span>
+                              <span className="text-amber-600 dark:text-amber-400 font-medium">
+                                In at {rec.arrivalTime}
+                              </span>
+                            </>
+                          )}
+                          {rec?.remarks && (
+                            <>
+                              <span>•</span>
+                              <span className="italic text-slate-500 truncate max-w-xs">
+                                "{rec.remarks}"
+                              </span>
+                            </>
+                          )}
+                        </div>
+                      </div>
                     </div>
-                    <div>
-                      <div className="text-sm font-bold text-slate-900 dark:text-slate-100">
-                        {student.firstName} {student.lastName}
-                      </div>
-                      <div className="text-xs text-slate-400 flex items-center gap-2">
-                        <span className="font-mono text-slate-500 dark:text-slate-400">
-                          {student.admissionNumber}
-                        </span>
-                        <span>•</span>
-                        <span>{student.gender === 'M' ? 'Male' : 'Female'}</span>
-                        {rec?.arrivalTime && currentStatus === 'LATE' && (
-                          <>
-                            <span>•</span>
-                            <span className="text-amber-600 dark:text-amber-400 font-medium">
-                              In at {rec.arrivalTime}
-                            </span>
-                          </>
-                        )}
-                        {rec?.remarks && (
-                          <>
-                            <span>•</span>
-                            <span className="italic text-slate-500 truncate max-w-xs">
-                              "{rec.remarks}"
-                            </span>
-                          </>
-                        )}
-                      </div>
+
+                    {/* Right Status Pill Selector Buttons */}
+                    <div className="flex items-center gap-1.5 self-end sm:self-auto">
+                      {/* Present */}
+                      <button
+                        type="button"
+                        onClick={() => handleSetStatus(student.id, 'PRESENT')}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                          currentStatus === 'PRESENT'
+                            ? 'bg-emerald-600 text-white shadow-xs'
+                            : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-emerald-50 hover:text-emerald-700'
+                        }`}
+                      >
+                        <Check className="w-3.5 h-3.5" />
+                        Present
+                      </button>
+
+                      {/* Late */}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const arrivalTime = prompt('Enter arrival time (e.g. 08:20 AM):', rec?.arrivalTime || '08:15 AM');
+                          handleSetStatus(student.id, 'LATE', { arrivalTime: arrivalTime || '08:15 AM' });
+                        }}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                          currentStatus === 'LATE'
+                            ? 'bg-amber-500 text-white shadow-xs'
+                            : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-amber-50 hover:text-amber-700'
+                        }`}
+                      >
+                        <Clock className="w-3.5 h-3.5" />
+                        Late
+                      </button>
+
+                      {/* Excused */}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const reason = prompt('Enter excused reason (e.g. Hospital / Dental):', rec?.remarks || 'Medical appointment');
+                          handleSetStatus(student.id, 'EXCUSED', { remarks: reason || 'Approved excusal' });
+                        }}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                          currentStatus === 'EXCUSED'
+                            ? 'bg-sky-600 text-white shadow-xs'
+                            : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-sky-50 hover:text-sky-700'
+                        }`}
+                      >
+                        <AlertCircle className="w-3.5 h-3.5" />
+                        Excused
+                      </button>
+
+                      {/* Absent */}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          handleSetStatus(student.id, 'ABSENT', { remarks: 'Unexcused Absence' });
+                        }}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                          currentStatus === 'ABSENT'
+                            ? 'bg-rose-600 text-white shadow-xs'
+                            : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-rose-50 hover:text-rose-700'
+                        }`}
+                      >
+                        <XCircle className="w-3.5 h-3.5" />
+                        Absent
+                      </button>
                     </div>
                   </div>
 
-                  {/* Right Status Pill Selector Buttons */}
-                  <div className="flex items-center gap-1.5 self-end sm:self-auto">
-                    {/* Present */}
-                    <button
-                      type="button"
-                      onClick={() => handleSetStatus(student.id, 'PRESENT')}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
-                        currentStatus === 'PRESENT'
-                          ? 'bg-emerald-600 text-white shadow-xs'
-                          : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-emerald-50 hover:text-emerald-700'
-                      }`}
-                    >
-                      <Check className="w-3.5 h-3.5" />
-                      Present
-                    </button>
-
-                    {/* Late */}
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const arrivalTime = prompt('Enter arrival time (e.g. 08:20 AM):', rec?.arrivalTime || '08:15 AM');
-                        handleSetStatus(student.id, 'LATE', { arrivalTime: arrivalTime || '08:15 AM' });
-                      }}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
-                        currentStatus === 'LATE'
-                          ? 'bg-amber-500 text-white shadow-xs'
-                          : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-amber-50 hover:text-amber-700'
-                      }`}
-                    >
-                      <Clock className="w-3.5 h-3.5" />
-                      Late
-                    </button>
-
-                    {/* Excused */}
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const reason = prompt('Enter excused reason (e.g. Hospital / Dental):', rec?.remarks || 'Medical appointment');
-                        handleSetStatus(student.id, 'EXCUSED', { remarks: reason || 'Approved excusal' });
-                      }}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
-                        currentStatus === 'EXCUSED'
-                          ? 'bg-sky-600 text-white shadow-xs'
-                          : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-sky-50 hover:text-sky-700'
-                      }`}
-                    >
-                      <AlertCircle className="w-3.5 h-3.5" />
-                      Excused
-                    </button>
-
-                    {/* Absent */}
-                    <button
-                      type="button"
-                      onClick={() => {
-                        handleSetStatus(student.id, 'ABSENT', { remarks: 'Unexcused Absence' });
-                      }}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
-                        currentStatus === 'ABSENT'
-                          ? 'bg-rose-600 text-white shadow-xs'
-                          : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-rose-50 hover:text-rose-700'
-                      }`}
-                    >
-                      <XCircle className="w-3.5 h-3.5" />
-                      Absent
-                    </button>
-                  </div>
+                  {/* Inline Conflict Diff Badge If Present */}
+                  {attConflict && (
+                    <div className="w-full pt-2 border-t border-rose-200 dark:border-rose-900/60 flex justify-end">
+                      <InlineConflictDiffBadge
+                        conflict={attConflict}
+                        currentUser={currentUser}
+                        onResolved={handleConflictResolved}
+                      />
+                    </div>
+                  )}
                 </div>
               );
             })}

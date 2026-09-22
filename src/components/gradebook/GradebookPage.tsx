@@ -44,7 +44,20 @@ import {
   computeCumulativeAnnualResults,
   getPriorTermsForSubject,
 } from '../../lib/gradebook-store';
-import { CumulativeStudentSubjectRecord, ReportCardSnapshot } from '../../types';
+import { CumulativeStudentSubjectRecord, ReportCardSnapshot, CellConflict } from '../../types';
+import {
+  isAppOnline,
+  getOfflineQueue,
+  getActiveConflicts,
+  getConflictForGradebookCell,
+  isGradebookCellPendingSync,
+  simulateGradebookConflict,
+  enqueueOfflineAction,
+  subscribeConflictChanges,
+  subscribeNetworkStatus,
+  subscribeQueueChanges,
+} from '../../lib/offline-queue';
+import { InlineConflictDiffBadge } from '../offline/InlineConflictDiffBadge';
 import { GradingConfigModal } from './GradingConfigModal';
 import { PasteFromExcelModal } from './PasteFromExcelModal';
 import { CumulativeBroadsheetView } from './CumulativeBroadsheetView';
@@ -239,6 +252,60 @@ export const GradebookPage: React.FC<GradebookPageProps> = ({
     });
   }, [records, searchQuery, filterRank, gradingConfig.passMark]);
 
+  // Offline Sync & Conflict Handling State
+  const [isOnline, setIsOnline] = useState<boolean>(() => isAppOnline());
+  const [queueCount, setQueueCount] = useState<number>(() => getOfflineQueue().length);
+  const [conflicts, setConflicts] = useState<CellConflict[]>(() => getActiveConflicts());
+
+  useEffect(() => {
+    const unsubNet = subscribeNetworkStatus((online) => setIsOnline(online));
+    const unsubQueue = subscribeQueueChanges(() => setQueueCount(getOfflineQueue().length));
+    const unsubConflicts = subscribeConflictChanges(() => setConflicts(getActiveConflicts()));
+    return () => {
+      unsubNet();
+      unsubQueue();
+      unsubConflicts();
+    };
+  }, []);
+
+  const handleConflictResolved = (resolved: CellConflict) => {
+    if (selectedLevel && selectedArm) {
+      const refreshed = getOrInitializeClassGradeRecords(
+        selectedLevel.id,
+        selectedLevel.name,
+        selectedArm.id,
+        selectedArm.name,
+        selectedSubjectCode,
+        selectedSubject.name,
+        sessionYear,
+        termName
+      );
+      setRecords(refreshed);
+    }
+    setConflicts(getActiveConflicts());
+    onLogAudit?.(
+      'SYNC_CONFLICT_RESOLVED',
+      `Resolved Gradebook cell conflict for ${resolved.studentName} on ${resolved.fieldLabel} with choice: ${resolved.resolvedChoice}`
+    );
+  };
+
+  const handleSimulateConflict = () => {
+    if (filteredRecords.length === 0) return;
+    const targetRecord = filteredRecords[0];
+    simulateGradebookConflict(targetRecord, 'ca1Score', {
+      localScore: Math.min(gradingConfig.ca1Max, (targetRecord.ca1Score ?? 14) + 5),
+      remoteScore: Math.max(0, (targetRecord.ca1Score ?? 14) - 4),
+      localAuthor: `${currentUser.name} (Offline Tablet Draft)`,
+      remoteAuthor: 'Mrs. Sarah Adebayo (HOD Science - Web Portal)',
+    });
+    setConflicts(getActiveConflicts());
+    setQueueCount(getOfflineQueue().length);
+    onLogAudit?.(
+      'SYNC_CONFLICT_SIMULATED',
+      `Simulated Gradebook sync conflict on CA 1 for ${targetRecord.studentName}`
+    );
+  };
+
   /**
    * Fast In-Cell Score Change
    */
@@ -274,6 +341,23 @@ export const GradebookPage: React.FC<GradebookPageProps> = ({
     setSaveStatus('saving');
     const { rankedClassRecords } = updateStudentGradeRecord(updated, records, gradingConfig);
     setRecords(rankedClassRecords);
+
+    // If offline, enqueue into persistent write-queue with fieldKey for cell-level pending indicator
+    if (!isAppOnline()) {
+      enqueueOfflineAction(
+        '/api/gradebook/score-update',
+        'PUT',
+        { recordId: updated.id, studentId: updated.studentId, subjectCode: updated.subjectCode, [colKey]: numVal },
+        `Offline gradebook edit for ${updated.studentName} (${colKey}: ${numVal})`,
+        {
+          actionType: 'GRADEBOOK_SCORE_UPDATE',
+          entityId: updated.id,
+          fieldKey: colKey,
+          performerName: currentUser.name,
+          performerRole: currentUser.role,
+        }
+      );
+    }
   };
 
   const handleScoreBlur = () => {
@@ -418,13 +502,23 @@ export const GradebookPage: React.FC<GradebookPageProps> = ({
 
         {/* Global Toolbar */}
         <div className="flex items-center gap-2 flex-wrap">
-          {/* Auto-save status indicator */}
-          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs shadow-xs">
-            {saveStatus === 'saved' ? (
+          {/* Auto-save & Offline Sync status indicator */}
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs shadow-xs">
+            {!isOnline ? (
+              <div className="flex items-center gap-1.5 text-amber-700 dark:text-amber-400 font-semibold">
+                <div className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+                <span>Offline Draft Mode ({queueCount} Pending Sync)</span>
+              </div>
+            ) : queueCount > 0 ? (
+              <div className="flex items-center gap-1.5 text-indigo-600 dark:text-indigo-400 font-semibold">
+                <div className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse" />
+                <span>{queueCount} Change(s) Pending Sync</span>
+              </div>
+            ) : saveStatus === 'saved' ? (
               <>
                 <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
                 <span className="font-semibold text-emerald-700 dark:text-emerald-400">
-                  All Changes Saved
+                  All Changes Synced
                 </span>
                 <span className="text-[10px] text-slate-400">({lastSavedTime})</span>
               </>
@@ -437,6 +531,25 @@ export const GradebookPage: React.FC<GradebookPageProps> = ({
               </>
             )}
           </div>
+
+          {/* Active Conflicts Alert Badge */}
+          {conflicts.length > 0 && (
+            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-rose-50 dark:bg-rose-950/60 border border-rose-300 dark:border-rose-800 text-xs text-rose-700 dark:text-rose-300 font-bold animate-pulse">
+              <AlertTriangle className="w-3.5 h-3.5 text-rose-600" />
+              <span>{conflicts.length} Sync Conflict(s) Flagged</span>
+            </div>
+          )}
+
+          {/* Simulate Conflict Test Button (Step 25 evaluation) */}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleSimulateConflict}
+            leftIcon={<AlertTriangle className="w-3.5 h-3.5 text-amber-500" />}
+            title="Simulate an offline vs online score collision to test inline diff badge and conflict resolution"
+          >
+            Simulate Sync Conflict
+          </Button>
 
           <Button
             variant="outline"
@@ -876,6 +989,19 @@ export const GradebookPage: React.FC<GradebookPageProps> = ({
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
               {filteredRecords.map((record, index) => {
                 const isFailing = record.totalScore !== null && record.totalScore < gradingConfig.passMark;
+                const ca1Conflict = conflicts.find(
+                  (c) => c.entityType === 'GRADEBOOK' && c.recordId === record.id && c.field === 'ca1Score'
+                );
+                const ca2Conflict = conflicts.find(
+                  (c) => c.entityType === 'GRADEBOOK' && c.recordId === record.id && c.field === 'ca2Score'
+                );
+                const examConflict = conflicts.find(
+                  (c) => c.entityType === 'GRADEBOOK' && c.recordId === record.id && c.field === 'examScore'
+                );
+                const ca1Pending = isGradebookCellPendingSync(record.id, 'ca1Score');
+                const ca2Pending = isGradebookCellPendingSync(record.id, 'ca2Score');
+                const examPending = isGradebookCellPendingSync(record.id, 'examScore');
+
                 return (
                   <tr
                     key={record.id}
@@ -908,66 +1034,135 @@ export const GradebookPage: React.FC<GradebookPageProps> = ({
                     </td>
 
                     {/* CA 1 Score Input */}
-                    <td className="p-2 text-center bg-indigo-50/20 dark:bg-indigo-950/10">
-                      <input
-                        ref={(el) => {
-                          inputRefs.current[`${index}_ca1Score`] = el;
-                        }}
-                        type="number"
-                        min={0}
-                        max={gradingConfig.ca1Max}
-                        step="0.5"
-                        disabled={isGradingLocked || record.isExempt}
-                        value={record.ca1Score !== null && record.ca1Score !== undefined ? record.ca1Score : ''}
-                        onChange={(e) => handleScoreChange(record.id, 'ca1Score', e.target.value)}
-                        onBlur={handleScoreBlur}
-                        onKeyDown={(e) => handleKeyDown(e, index, 'ca1Score')}
-                        onPaste={(e) => handleCellPaste(e, index, 'ca1Score')}
-                        placeholder="-"
-                        className="w-16 px-2 py-1 text-center font-mono font-bold text-xs border border-slate-200 dark:border-slate-700 rounded-md bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 disabled:bg-slate-100 disabled:opacity-50"
-                      />
+                    <td className={`p-2 text-center bg-indigo-50/20 dark:bg-indigo-950/10 ${ca1Conflict ? 'bg-rose-50/50 dark:bg-rose-950/30 ring-1 ring-rose-400 rounded-md' : ''}`}>
+                      <div className="flex items-center justify-center gap-1">
+                        <input
+                          ref={(el) => {
+                            inputRefs.current[`${index}_ca1Score`] = el;
+                          }}
+                          type="number"
+                          min={0}
+                          max={gradingConfig.ca1Max}
+                          step="0.5"
+                          disabled={isGradingLocked || record.isExempt}
+                          value={record.ca1Score !== null && record.ca1Score !== undefined ? record.ca1Score : ''}
+                          onChange={(e) => handleScoreChange(record.id, 'ca1Score', e.target.value)}
+                          onBlur={handleScoreBlur}
+                          onKeyDown={(e) => handleKeyDown(e, index, 'ca1Score')}
+                          onPaste={(e) => handleCellPaste(e, index, 'ca1Score')}
+                          placeholder="-"
+                          className={`w-16 px-2 py-1 text-center font-mono font-bold text-xs border rounded-md bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 disabled:bg-slate-100 disabled:opacity-50 ${
+                            ca1Conflict
+                              ? 'border-rose-500 ring-1 ring-rose-400'
+                              : ca1Pending
+                              ? 'border-amber-400 bg-amber-50/30 dark:bg-amber-950/20'
+                              : 'border-slate-200 dark:border-slate-700'
+                          }`}
+                        />
+                        {ca1Pending && (
+                          <span
+                            className="w-2 h-2 rounded-full bg-amber-500 animate-pulse shrink-0"
+                            title="Offline edit pending sync"
+                          />
+                        )}
+                      </div>
+                      {ca1Conflict && (
+                        <div className="mt-1.5 flex justify-center">
+                          <InlineConflictDiffBadge
+                            conflict={ca1Conflict}
+                            currentUser={currentUser}
+                            onResolved={handleConflictResolved}
+                          />
+                        </div>
+                      )}
                     </td>
 
                     {/* CA 2 Score Input */}
-                    <td className="p-2 text-center bg-indigo-50/20 dark:bg-indigo-950/10">
-                      <input
-                        ref={(el) => {
-                          inputRefs.current[`${index}_ca2Score`] = el;
-                        }}
-                        type="number"
-                        min={0}
-                        max={gradingConfig.ca2Max}
-                        step="0.5"
-                        disabled={isGradingLocked || record.isExempt}
-                        value={record.ca2Score !== null && record.ca2Score !== undefined ? record.ca2Score : ''}
-                        onChange={(e) => handleScoreChange(record.id, 'ca2Score', e.target.value)}
-                        onBlur={handleScoreBlur}
-                        onKeyDown={(e) => handleKeyDown(e, index, 'ca2Score')}
-                        onPaste={(e) => handleCellPaste(e, index, 'ca2Score')}
-                        placeholder="-"
-                        className="w-16 px-2 py-1 text-center font-mono font-bold text-xs border border-slate-200 dark:border-slate-700 rounded-md bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 disabled:bg-slate-100 disabled:opacity-50"
-                      />
+                    <td className={`p-2 text-center bg-indigo-50/20 dark:bg-indigo-950/10 ${ca2Conflict ? 'bg-rose-50/50 dark:bg-rose-950/30 ring-1 ring-rose-400 rounded-md' : ''}`}>
+                      <div className="flex items-center justify-center gap-1">
+                        <input
+                          ref={(el) => {
+                            inputRefs.current[`${index}_ca2Score`] = el;
+                          }}
+                          type="number"
+                          min={0}
+                          max={gradingConfig.ca2Max}
+                          step="0.5"
+                          disabled={isGradingLocked || record.isExempt}
+                          value={record.ca2Score !== null && record.ca2Score !== undefined ? record.ca2Score : ''}
+                          onChange={(e) => handleScoreChange(record.id, 'ca2Score', e.target.value)}
+                          onBlur={handleScoreBlur}
+                          onKeyDown={(e) => handleKeyDown(e, index, 'ca2Score')}
+                          onPaste={(e) => handleCellPaste(e, index, 'ca2Score')}
+                          placeholder="-"
+                          className={`w-16 px-2 py-1 text-center font-mono font-bold text-xs border rounded-md bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 disabled:bg-slate-100 disabled:opacity-50 ${
+                            ca2Conflict
+                              ? 'border-rose-500 ring-1 ring-rose-400'
+                              : ca2Pending
+                              ? 'border-amber-400 bg-amber-50/30 dark:bg-amber-950/20'
+                              : 'border-slate-200 dark:border-slate-700'
+                          }`}
+                        />
+                        {ca2Pending && (
+                          <span
+                            className="w-2 h-2 rounded-full bg-amber-500 animate-pulse shrink-0"
+                            title="Offline edit pending sync"
+                          />
+                        )}
+                      </div>
+                      {ca2Conflict && (
+                        <div className="mt-1.5 flex justify-center">
+                          <InlineConflictDiffBadge
+                            conflict={ca2Conflict}
+                            currentUser={currentUser}
+                            onResolved={handleConflictResolved}
+                          />
+                        </div>
+                      )}
                     </td>
 
                     {/* Exam Score Input */}
-                    <td className="p-2 text-center bg-indigo-50/20 dark:bg-indigo-950/10">
-                      <input
-                        ref={(el) => {
-                          inputRefs.current[`${index}_examScore`] = el;
-                        }}
-                        type="number"
-                        min={0}
-                        max={gradingConfig.examMax}
-                        step="0.5"
-                        disabled={isGradingLocked || record.isExempt}
-                        value={record.examScore !== null && record.examScore !== undefined ? record.examScore : ''}
-                        onChange={(e) => handleScoreChange(record.id, 'examScore', e.target.value)}
-                        onBlur={handleScoreBlur}
-                        onKeyDown={(e) => handleKeyDown(e, index, 'examScore')}
-                        onPaste={(e) => handleCellPaste(e, index, 'examScore')}
-                        placeholder="-"
-                        className="w-16 px-2 py-1 text-center font-mono font-bold text-xs border border-slate-200 dark:border-slate-700 rounded-md bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 disabled:bg-slate-100 disabled:opacity-50"
-                      />
+                    <td className={`p-2 text-center bg-indigo-50/20 dark:bg-indigo-950/10 ${examConflict ? 'bg-rose-50/50 dark:bg-rose-950/30 ring-1 ring-rose-400 rounded-md' : ''}`}>
+                      <div className="flex items-center justify-center gap-1">
+                        <input
+                          ref={(el) => {
+                            inputRefs.current[`${index}_examScore`] = el;
+                          }}
+                          type="number"
+                          min={0}
+                          max={gradingConfig.examMax}
+                          step="0.5"
+                          disabled={isGradingLocked || record.isExempt}
+                          value={record.examScore !== null && record.examScore !== undefined ? record.examScore : ''}
+                          onChange={(e) => handleScoreChange(record.id, 'examScore', e.target.value)}
+                          onBlur={handleScoreBlur}
+                          onKeyDown={(e) => handleKeyDown(e, index, 'examScore')}
+                          onPaste={(e) => handleCellPaste(e, index, 'examScore')}
+                          placeholder="-"
+                          className={`w-16 px-2 py-1 text-center font-mono font-bold text-xs border rounded-md bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 disabled:bg-slate-100 disabled:opacity-50 ${
+                            examConflict
+                              ? 'border-rose-500 ring-1 ring-rose-400'
+                              : examPending
+                              ? 'border-amber-400 bg-amber-50/30 dark:bg-amber-950/20'
+                              : 'border-slate-200 dark:border-slate-700'
+                          }`}
+                        />
+                        {examPending && (
+                          <span
+                            className="w-2 h-2 rounded-full bg-amber-500 animate-pulse shrink-0"
+                            title="Offline edit pending sync"
+                          />
+                        )}
+                      </div>
+                      {examConflict && (
+                        <div className="mt-1.5 flex justify-center">
+                          <InlineConflictDiffBadge
+                            conflict={examConflict}
+                            currentUser={currentUser}
+                            onResolved={handleConflictResolved}
+                          />
+                        </div>
+                      )}
                     </td>
 
                     {/* Auto-Calculated Total */}

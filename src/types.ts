@@ -1,12 +1,25 @@
-export type Role = 'SUPER_ADMIN' | 'PRINCIPAL' | 'ACADEMIC_DIRECTOR' | 'TEACHER' | 'BURSAR';
+export type Role =
+  | 'SUPER_ADMIN'
+  | 'PRINCIPAL'
+  | 'ACADEMIC_DIRECTOR'
+  | 'TEACHER'
+  | 'BURSAR'
+  | 'PARENT'
+  | 'STUDENT'
+  | 'CLASS_CAPTAIN';
 
 export interface UserProfile {
   id: string;
   name: string;
   email: string;
   role: Role;
+  roles?: Role[];
   avatarUrl?: string;
   title: string;
+  phoneNumber?: string;
+  linkedStudentIds?: string[];
+  assignedClassLevel?: string;
+  assignedClassArm?: string;
 }
 
 export type SessionStatus = 'ACTIVE' | 'UPCOMING' | 'COMPLETED';
@@ -123,14 +136,58 @@ export interface AuditLog {
   details: string;
 }
 
+export type OfflineQueueActionType =
+  | 'GRADEBOOK_SCORE_UPDATE'
+  | 'ATTENDANCE_REGISTER_SAVE'
+  | 'GENERAL_MUTATION';
+
 export interface OfflineQueueItem {
   id: string;
   endpoint: string;
   method: 'POST' | 'PUT' | 'PATCH' | 'DELETE';
-  payload: Record<string, unknown>;
+  payload: any;
   timestamp: number;
   description: string;
-  status: 'PENDING' | 'SYNCED' | 'FAILED';
+  status: 'PENDING' | 'SYNCED' | 'FAILED' | 'CONFLICT';
+  actionType?: OfflineQueueActionType;
+  entityId?: string; // e.g. studentId or recordId
+  fieldKey?: string; // e.g. 'ca1Score', 'ca2Score', 'examScore', 'status'
+  performerName?: string;
+  performerRole?: string;
+}
+
+export interface CellConflict {
+  id: string;
+  entityType: 'GRADEBOOK' | 'ATTENDANCE';
+  recordId: string;
+  studentId: string;
+  studentName: string;
+  admissionNumber?: string;
+  field: string; // e.g. 'ca1Score' | 'ca2Score' | 'examScore' | 'status'
+  fieldLabel: string;
+  contextInfo: {
+    levelName?: string;
+    armName?: string;
+    subjectCode?: string;
+    subjectName?: string;
+    sessionYear?: string;
+    termName?: string;
+    date?: string;
+  };
+  // Offline (Local) side
+  localValue: any;
+  localEditedBy: string;
+  localEditedAt: string;
+  // Remote (Online/Server) side
+  remoteValue: any;
+  remoteEditedBy: string;
+  remoteEditedAt: string;
+  // Conflict status & resolution
+  status: 'UNRESOLVED' | 'RESOLVED';
+  resolvedChoice?: 'LOCAL' | 'REMOTE';
+  resolvedValue?: any;
+  resolvedAt?: string;
+  resolvedBy?: string;
 }
 
 export type ImportEntityType = 'STUDENTS' | 'STAFF' | 'FEES';
@@ -146,7 +203,7 @@ export interface AcademicRecordSnapshot {
   positionInClass?: number;
   totalInClass?: number;
   attendanceRate: number;
-  promotionStatus: 'PROMOTED' | 'PROMOTED_ON_TRIAL' | 'REPEATED' | 'CURRENT';
+  promotionStatus: 'PROMOTED' | 'PROMOTED_ON_TRIAL' | 'REPEATED' | 'CURRENT' | 'GRADUATED';
   promotedTo?: string;
   promotedDate?: string;
   principalRemarks?: string;
@@ -259,6 +316,184 @@ export interface FeePayment {
   paymentDate: string;
   paymentMethod: 'BANK_TRANSFER' | 'CASH' | 'ONLINE_CARD' | 'CHEQUE';
   status: 'PAID' | 'PARTIAL' | 'PENDING' | 'RECONCILED';
+}
+
+export type FeeItemType =
+  | 'TUITION'
+  | 'PTA'
+  | 'FEEDING'
+  | 'TRANSPORT'
+  | 'LAB_SCIENCE'
+  | 'EXAM_LEVY'
+  | 'OTHER';
+
+export interface FeeItem {
+  id: string;
+  name: string;
+  type: FeeItemType;
+  amount: number;
+  isCompulsory: boolean;
+  description?: string;
+}
+
+export interface ClassTermFeeStructure {
+  id: string;
+  schoolId: string;
+  sessionYear: string;
+  termName: string;
+  classLevelId: string;
+  classLevelName: string;
+  items: FeeItem[];
+  totalAmount: number;
+  dueDate: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type PaymentGatewayType = 'PAYSTACK' | 'FLUTTERWAVE' | 'BANK_TRANSFER_MANUAL' | 'CASH';
+
+export interface StudentPaymentRecord {
+  id: string;
+  transactionReference: string;
+  idempotencyKey?: string; // Step 16: Idempotency protection to prevent double-crediting
+  studentId: string;
+  amount: number;
+  paymentDate: string;
+  channel: PaymentGatewayType;
+  status: 'SUCCESS' | 'PENDING' | 'RECONCILED' | 'FAILED' | 'FLAGGED_MANUAL_REVIEW';
+  payerName: string;
+  payerEmail?: string;
+  payerPhone?: string;
+  proofDocumentUrl?: string;
+  proofDocumentName?: string;
+  bankName?: string;
+  notes?: string;
+  recordedBy: string;
+  recordedAt: string;
+  reconciliationStatus?: 'NOT_NEEDED' | 'PENDING_POLL' | 'RECONCILED' | 'FLAGGED_MANUAL_REVIEW' | 'EXPIRED_ABANDONED';
+  pollAttempts?: number;
+  lastPollAt?: string;
+  gatewayTransactionId?: string;
+}
+
+// STEP 16: Discount & Waiver Engine Types
+export type FeeDiscountType =
+  | 'SIBLING'
+  | 'EARLY_PAYMENT'
+  | 'STAFF_CHILD'
+  | 'MERIT_SCHOLARSHIP'
+  | 'CUSTOM';
+
+export type FeeCalculationType = 'PERCENTAGE' | 'FIXED_AMOUNT';
+
+export interface FeeDiscountRule {
+  id: string;
+  name: string;
+  type: FeeDiscountType;
+  calculationType: FeeCalculationType;
+  value: number; // e.g. 15 for 15%, or 25000 for ₦25,000
+  appliesToItemType?: FeeItemType; // Optional target e.g. 'TUITION'
+  earlyPaymentCutoffDate?: string; // YYYY-MM-DD for early bird
+  siblingMinCount?: number; // e.g. 2 for 2nd child, 3 for 3rd+
+  description?: string;
+  isActive: boolean;
+}
+
+export interface AppliedDiscount {
+  ruleId: string;
+  ruleName: string;
+  discountType: FeeDiscountType;
+  amountSaved: number;
+  appliedAt: string;
+  notes?: string;
+}
+
+// STEP 16: Automated Payment Reminders
+export type ReminderTriggerStage =
+  | 'UPCOMING_14_DAYS'
+  | 'UPCOMING_3_DAYS'
+  | 'ON_DUE_DATE'
+  | 'OVERDUE_7_DAYS'
+  | 'OVERDUE_14_DAYS'
+  | 'MANUAL_DISPATCH';
+
+export interface PaymentReminderNotification {
+  id: string;
+  studentId: string;
+  studentName: string;
+  guardianName: string;
+  guardianEmail?: string;
+  guardianPhone?: string;
+  amountDue: number;
+  dueDate: string;
+  channel: 'EMAIL' | 'SMS' | 'MULTI_CHANNEL';
+  triggerStage: ReminderTriggerStage;
+  messageBody: string;
+  sentAt: string;
+  status: 'DELIVERED' | 'SENT' | 'QUEUED';
+}
+
+export interface StudentFeeAccount {
+  id: string;
+  schoolId: string;
+  studentId: string;
+  studentName: string;
+  admissionNumber: string;
+  avatarUrl?: string;
+  classLevel: string;
+  classArm: string;
+  sessionYear: string;
+  termName: string;
+  grossBilled: number; // Gross amount before discounts
+  discountAmount: number; // Total discounts applied
+  appliedDiscounts: AppliedDiscount[]; // Active discounts/waivers
+  totalBilled: number; // Net billed = grossBilled - discountAmount
+  totalPaid: number;
+  balanceDue: number;
+  percentagePaid: number;
+  status: 'CLEARED' | 'PARTIAL' | 'UNPAID';
+  feeItems?: FeeItem[];
+  payments: StudentPaymentRecord[];
+}
+
+// STEP 17: Bulk Promotion Wizard Types
+export type PromotionAction =
+  | 'PROMOTE'
+  | 'REPEAT'
+  | 'PROMOTE_TRIAL'
+  | 'GRADUATE_ALUMNI';
+
+export interface StudentPromotionDecision {
+  studentId: string;
+  studentName: string;
+  admissionNumber: string;
+  currentClassLevel: string;
+  currentClassArm: string;
+  targetClassLevel: string;
+  targetClassArm: string;
+  action: PromotionAction;
+  academicGpa?: number;
+  overallGrade?: string;
+  academicRecommendation?: string;
+  feeClearanceStatus: 'CLEARED' | 'PARTIAL' | 'OUTSTANDING';
+  assignedFeeStructureId?: string;
+  assignedFeeTotal?: number;
+  isManuallyOverridden?: boolean;
+  overrideReason?: string;
+}
+
+export interface BulkPromotionBatch {
+  id: string;
+  schoolId: string;
+  fromSessionYear: string;
+  toSessionYear: string;
+  promotedCount: number;
+  repeatedCount: number;
+  graduatedCount: number;
+  promotedAt: string;
+  promotedBy: string;
+  decisions: StudentPromotionDecision[];
+  rollbackSnapshotId: string;
 }
 
 export interface ValidationError {
@@ -694,21 +929,6 @@ export interface ReportCardSnapshot {
   isPublished: boolean;
 }
 
-export interface DisciplinaryRecord {
-  id: string;
-  studentId: string;
-  studentName: string;
-  studentRegNumber: string;
-  incidentDate: string;
-  incidentTitle: string;
-  description: string;
-  severity: 'MINOR' | 'MODERATE' | 'SERIOUS';
-  actionTaken: string;
-  isPrivate: boolean; // NEVER shown to classmates or public QR verification
-  recordedBy: string;
-  createdAt: string;
-}
-
 export interface StudentAnnouncementItem {
   id: string;
   title: string;
@@ -719,9 +939,331 @@ export interface StudentAnnouncementItem {
   category: 'ACADEMIC' | 'EVENT' | 'EXAM' | 'ADMINISTRATIVE' | 'EMERGENCY';
   authorName: string;
   authorRole: string;
+  authorType?: 'STAFF' | 'CLASS_CAPTAIN' | 'ADMIN';
+  isCaptainPost?: boolean;
+  captainBadgeText?: string;
   createdAt: string;
   isPinned?: boolean;
   readBy?: string[]; // studentIds that marked as read
+}
+
+export interface ParentChildLink {
+  id: string;
+  parentId: string;
+  parentName: string;
+  parentEmail: string;
+  parentPhone: string;
+  relationship: 'FATHER' | 'MOTHER' | 'GUARDIAN';
+  studentId: string;
+  studentName: string;
+  admissionNumber: string;
+  classLevel: string;
+  classArm: string;
+  isEmergencyContact: boolean;
+  hasFinancialResponsibility: boolean;
+  linkedAt: string;
+  linkedBy: string;
+}
+
+export interface ClassCaptainRecord {
+  id: string;
+  studentId: string;
+  studentName: string;
+  admissionNumber: string;
+  classLevel: string;
+  classArm: string;
+  captainRole: 'HEAD_CAPTAIN' | 'ASSISTANT_CAPTAIN' | 'TIME_KEEPER' | 'LAB_PREFECT';
+  appointedBy: string;
+  appointedAt: string;
+  status: 'ACTIVE' | 'REVOKED';
+}
+
+export interface DirectChatMessage {
+  id: string;
+  threadId: string;
+  senderId: string;
+  senderName: string;
+  senderRole: Role;
+  recipientId: string;
+  recipientName: string;
+  recipientRole: Role;
+  content: string;
+  timestamp: string;
+  status: 'SENT' | 'DELIVERED' | 'READ';
+  attachments?: { name: string; url: string; type: string }[];
+}
+
+export interface ChatThread {
+  id: string;
+  type: 'TEACHER_PARENT' | 'CAPTAIN_TEACHER';
+  studentId?: string;
+  studentName?: string;
+  classLevel: string;
+  classArm: string;
+  participantIds: string[];
+  participantNames: Record<string, string>;
+  participantRoles: Record<string, Role>;
+  title: string;
+  lastMessageSnippet: string;
+  lastMessageAt: string;
+  unreadCount: Record<string, number>;
+}
+
+export interface BroadcastMessageRecord {
+  id: string;
+  title: string;
+  body: string;
+  channels: ('SMS' | 'EMAIL' | 'IN_APP')[];
+  audienceScope: 'SCHOOL_WIDE' | 'CLASS_LEVEL' | 'CLASS_ARM' | 'CUSTOM';
+  targetLevel?: string;
+  targetArm?: string;
+  recipientCount: number;
+  smsCharacterCount?: number;
+  smsSegmentsPerRecipient?: number;
+  smsTotalSegments?: number;
+  estimatedCostNaira?: number;
+  isHighPriorityAlert?: boolean;
+  senderId: string;
+  senderName: string;
+  senderRole: string;
+  sentAt: string;
+  deliveryStats: {
+    smsSent: number;
+    smsFailed: number;
+    emailSent: number;
+    inAppDelivered: number;
+  };
+}
+
+// ==========================================
+// STEP 21 — Disciplinary Records
+// ==========================================
+
+export type DisciplinarySeverity =
+  | 'LOW'
+  | 'MEDIUM'
+  | 'HIGH'
+  | 'CRITICAL'
+  | 'MINOR'
+  | 'MODERATE'
+  | 'SERIOUS';
+
+export type DisciplinaryAction =
+  | 'VERBAL_WARNING'
+  | 'WRITTEN_WARNING'
+  | 'DETENTION'
+  | 'COMMUNITY_SERVICE'
+  | 'PARENTAL_CONFERENCE'
+  | 'COUNSELING_REFERRAL'
+  | 'IN_SCHOOL_SUSPENSION'
+  | 'OUT_OF_SCHOOL_SUSPENSION'
+  | string;
+
+export type DisciplinaryStatus = 'OPEN' | 'RESOLVED' | 'UNDER_OBSERVATION';
+
+export interface DisciplinaryRecord {
+  id: string;
+  school_id?: string; // Tenant isolation invariant
+  studentId: string;
+  studentName: string;
+  studentRegNumber?: string;
+  admissionNumber?: string;
+  classLevel?: string;
+  classArm?: string;
+  incidentDate: string; // YYYY-MM-DD
+  incidentTitle?: string;
+  category?: string; // e.g. "Disruptive Behavior", "Truancy/Tardiness", "Academic Dishonesty", "Bullying/Harassment", "Vandalism", "Dress Code Violation"
+  description: string; // Raw incident notes (Visible only to Admin & Counselor/Teacher)
+  severity: DisciplinarySeverity;
+  actionTaken: DisciplinaryAction;
+  actionDetails?: string;
+  followUpNotes?: string;
+  followUpDate?: string;
+  status?: DisciplinaryStatus;
+  recordedBy: string;
+  recorderRole?: string;
+  createdAt: string;
+  updatedAt?: string;
+  isPrivate?: boolean; // Strictly private - never shown in student portal or public QR
+  // Parent exposure control
+  isExposedToParent?: boolean;
+  parentApprovedSummary?: string; // Admin-approved sanitized summary (NOT raw notes)
+  parentApprovedBy?: string;
+  parentApprovedAt?: string;
+}
+
+// ==========================================
+// STEP 22 — AI-Sorted Suggestion Box
+// ==========================================
+
+export type SuggestionCategory =
+  | 'FACILITIES'
+  | 'ACADEMICS'
+  | 'BULLYING_WELFARE'
+  | 'FOOD_CAFETERIA'
+  | 'FEES_BILLING'
+  | 'GENERAL';
+
+export type SuggestionUrgency = 'LOW' | 'NORMAL' | 'URGENT' | 'CRITICAL_WELFARE';
+
+export type SuggestionSentiment = 'POSITIVE' | 'NEUTRAL' | 'NEGATIVE' | 'DISTRESSED';
+
+export type SuggestionStatus = 'RECEIVED' | 'UNDER_REVIEW' | 'IN_PROGRESS' | 'ACTIONED';
+
+export interface SuggestionRecord {
+  id: string;
+  school_id: string; // Tenant isolation
+  trackingCode: string; // e.g. "SUG-2024-819"
+  title: string;
+  content: string;
+  isAnonymous: boolean;
+  submitterId?: string;
+  submitterName?: string;
+  submitterRole?: Role;
+  submitterEmail?: string;
+  category: SuggestionCategory;
+  urgency: SuggestionUrgency;
+  sentiment: SuggestionSentiment;
+  sentimentScore: number; // -1.0 to 1.0
+  aiTags: string[];
+  isWelfareEscalated: boolean;
+  escalatedTo?: string; // e.g. "Designated Safeguarding Lead (Dr. Kunle Adeleke)"
+  status: SuggestionStatus;
+  adminFeedback?: string; // Visible to submitter
+  internalAdminNotes?: string; // Confidential - visible only to Admins
+  submittedAt: string;
+  updatedAt: string;
+}
+
+// ==========================================
+// STEP 23 — Staff Payroll
+// ==========================================
+
+export interface StaffBankDetails {
+  bankName: string;
+  accountNumber: string;
+  accountName: string;
+  bvnMasked: string; // e.g. "2234****109"
+  sortCode?: string;
+}
+
+export interface StaffSalaryStructure {
+  basicPay: number;
+  housingAllowance: number;
+  transportAllowance: number;
+  teachingAllowance: number;
+  responsibilityAllowance: number;
+  mealAllowance: number;
+  payeTaxRate: number; // e.g. 0.08 for 8%
+  pensionEmployeeRate: number; // e.g. 0.08 for 8% statutory
+  unionDues: number;
+  healthInsurance: number;
+}
+
+export interface StaffAttendanceRecord {
+  month: string; // "2024-10"
+  workingDays: number;
+  daysWorked: number;
+  unexcusedAbsences: number;
+  approvedLeaves: number;
+  dailyWageRate: number;
+  absenceDeduction: number;
+}
+
+export interface StaffMember {
+  id: string;
+  school_id: string;
+  employeeCode: string;
+  name: string;
+  email: string;
+  phone: string;
+  role: string;
+  department: string;
+  employmentDate: string; // YYYY-MM-DD
+  employmentType: 'FULL_TIME' | 'PART_TIME' | 'CONTRACT';
+  status: 'ACTIVE' | 'ON_LEAVE' | 'SUSPENDED';
+  bankDetails: StaffBankDetails;
+  salary: StaffSalaryStructure;
+  attendanceThisMonth: StaffAttendanceRecord;
+}
+
+export interface MonthlyPayrollRun {
+  id: string;
+  school_id: string;
+  sessionYear: string;
+  month: string; // e.g. "October 2024"
+  runDate: string;
+  totalStaffCount: number;
+  totalBasicPay: number;
+  totalAllowances: number;
+  totalGrossPay: number;
+  totalTaxPAYE: number;
+  totalPension: number;
+  totalAbsenceDeductions: number;
+  totalOtherDeductions: number;
+  totalDeductions: number;
+  totalNetPay: number;
+  status: 'DRAFT' | 'APPROVED' | 'DISBURSED';
+  batchPaymentReference?: string;
+  disbursedAt?: string;
+  approvedBy?: string;
+}
+
+export interface StaffPayslip {
+  id: string;
+  payrollRunId: string;
+  school_id: string;
+  staffId: string;
+  staffName: string;
+  employeeCode: string;
+  department: string;
+  jobTitle: string;
+  month: string;
+  sessionYear: string;
+  basicPay: number;
+  allowances: { name: string; amount: number }[];
+  grossPay: number;
+  deductions: { name: string; amount: number }[];
+  totalDeductions: number;
+  netPay: number;
+  bankDetailsMasked: string;
+  status: 'PAID' | 'PENDING' | 'FAILED';
+  paymentReference: string;
+  generatedAt: string;
+}
+
+// ==========================================
+// STEP 24 — Data Export & Backup
+// ==========================================
+
+export type ExportScope = 'ALL' | 'CLASS_LEVEL' | 'CLASS_ARM' | 'TERM' | 'CUSTOM';
+export type ExportDomain = 'STUDENTS' | 'FEES_FINANCE' | 'STAFF_PAYROLL' | 'EXAMS_ACADEMICS';
+
+export interface BackupScheduleConfig {
+  frequency: 'DAILY' | 'WEEKLY' | 'MONTHLY';
+  backupTimeUtc: string; // e.g. "02:00"
+  retentionDays: number;
+  targetCloudBucket: string;
+  autoExportFormat: 'SQL_JSON' | 'CSV_ARCHIVE';
+  isEnabled: boolean;
+  lastRunAt?: string;
+  nextRunAt: string;
+}
+
+export interface DatabaseBackupSnapshot {
+  id: string;
+  school_id: string;
+  filename: string;
+  type: 'AUTOMATED' | 'MANUAL';
+  createdAt: string;
+  sizeBytes: number;
+  formattedSize: string;
+  checksumSha256: string;
+  schemaVersion: string;
+  tablesIncluded: { table: string; count: number }[];
+  status: 'HEALTHY' | 'VERIFIED' | 'FAILED';
+  triggeredBy: string;
+  downloadPayload?: string;
 }
 
 

@@ -8,11 +8,13 @@ import {
   CheckCircle2,
   AlertCircle,
   HelpCircle,
+  GraduationCap,
 } from 'lucide-react';
 import { AcademicSession, Term, Role } from '../../types';
 import { Card, Button, Input, Modal, Badge } from '../../design-system';
 import { SessionCard } from './SessionCard';
 import { AdvanceTermModal } from './AdvanceTermModal';
+import BulkPromotionWizardModal from './BulkPromotionWizardModal';
 import { formatDate } from './format';
 
 export interface AcademicSessionsPageProps {
@@ -63,6 +65,7 @@ export const AcademicSessionsPage: React.FC<AcademicSessionsPageProps> = ({
   const [newSessionYear, setNewSessionYear] = useState('2026/2027');
   const [newSessionStartDate, setNewSessionStartDate] = useState('2026-09-07');
   const [newSessionEndDate, setNewSessionEndDate] = useState('2027-07-23');
+  const [isPromotionWizardOpen, setIsPromotionWizardOpen] = useState(false);
 
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
@@ -274,6 +277,17 @@ export const AcademicSessionsPage: React.FC<AcademicSessionsPageProps> = ({
             <Button
               variant="outline"
               size="md"
+              onClick={() => setIsPromotionWizardOpen(true)}
+              leftIcon={<GraduationCap className="w-4 h-4 text-emerald-300" />}
+              className="border-white/30 text-white hover:bg-white/10"
+            >
+              Bulk Promotion Wizard
+            </Button>
+          )}
+          {canManage && (
+            <Button
+              variant="outline"
+              size="md"
               onClick={() => setNewSessionModalOpen(true)}
               leftIcon={<Plus className="w-4 h-4" />}
               className="border-white/30 text-white hover:bg-white/10"
@@ -443,6 +457,21 @@ export const AcademicSessionsPage: React.FC<AcademicSessionsPageProps> = ({
           </div>
         </div>
       </Modal>
+
+      {/* Bulk Promotion Wizard Modal */}
+      {isPromotionWizardOpen && (
+        <BulkPromotionWizardModal
+          isOpen={isPromotionWizardOpen}
+          onClose={() => setIsPromotionWizardOpen(false)}
+          onCompleted={(batch) => {
+            showToast(`Bulk promotion to ${batch.toSessionYear} successfully executed!`);
+            onLogAudit?.(
+              'BULK_PROMOTION_COMMITTED',
+              `Executed bulk promotion cohort transition to ${batch.toSessionYear}: ${batch.promotedCount} promoted, ${batch.repeatedCount} repeated, ${batch.graduatedCount} alumni`
+            );
+          }}
+        />
+      )}
     </div>
   );
 };

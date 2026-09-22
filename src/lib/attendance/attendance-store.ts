@@ -184,7 +184,13 @@ export function saveClassAttendanceRegister(
       summary,
       recordCount: records.length,
     },
-    `Logged attendance for ${classLevel} - ${classArm} on ${date}`
+    `Logged attendance for ${classLevel} - ${classArm} on ${date}`,
+    {
+      actionType: 'ATTENDANCE_REGISTER_SAVE',
+      entityId: `${classLevel}-${classArm}-${date}`,
+      performerName: performer.name,
+      performerRole: performer.role,
+    }
   );
 
   return { updatedRecords: combined, summary };

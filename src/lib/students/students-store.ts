@@ -2,6 +2,8 @@ import { Student, AcademicRecordSnapshot, UserProfile } from '../../types';
 import { getStoredStudents, saveStudents } from '../migration-store';
 import { enqueueOfflineAction } from '../offline-queue';
 
+export { saveStudents };
+
 const STATES_OF_ORIGIN = [
   'Lagos', 'Ogun', 'Oyo', 'Osun', 'Ondo', 'Ekiti', 'Edo', 'Delta', 'Rivers',
   'Anambra', 'Enugu', 'Imo', 'Abia', 'Kano', 'Kaduna', 'Kwara', 'FCT Abuja'

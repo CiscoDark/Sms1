@@ -14,6 +14,12 @@ import {
   Users,
   Clock,
   FileSpreadsheet,
+  CreditCard,
+  MessageSquare,
+  ShieldAlert,
+  Sparkles,
+  Banknote,
+  Database,
 } from 'lucide-react';
 import {
   AcademicSession,
@@ -48,8 +54,15 @@ import { TeacherPersonalTimetablePage } from './components/timetable/TeacherPers
 import { AssessmentSchedulePage } from './components/assessments/AssessmentSchedulePage';
 import { GradebookPage } from './components/gradebook/GradebookPage';
 import { StudentPortalPage } from './components/student-portal/StudentPortalPage';
+import { ParentPortalPage } from './components/parent-portal/ParentPortalPage';
+import { CommunicationsHubPage } from './components/messaging/CommunicationsHubPage';
 import { PublicCredentialVerifyView } from './components/report-cards/PublicCredentialVerifyView';
-import { getReportCardByCredentialUuid } from './lib/report-card-store';
+import { FeeManagementPage } from './components/finance/FeeManagementPage';
+import { DisciplinaryLogPage } from './components/disciplinary/DisciplinaryLogPage';
+import { SuggestionBoxPage } from './components/suggestions/SuggestionBoxPage';
+import { PayrollPage } from './components/payroll/PayrollPage';
+import { DataExportBackupPage } from './components/backup/DataExportBackupPage';
+import { getReportCardByCredentialUuid, getAllPublishedReportCards } from './lib/report-card-store';
 import { enqueueOfflineAction } from './lib/offline-queue';
 import { getEnrichedStudents } from './lib/students/students-store';
 
@@ -64,6 +77,13 @@ type Tab =
   | 'assessments'
   | 'gradebook'
   | 'student-portal'
+  | 'parent-portal'
+  | 'messages'
+  | 'fees'
+  | 'disciplinary'
+  | 'suggestions'
+  | 'payroll'
+  | 'backup'
   | 'data-migration'
   | 'design-system';
 
@@ -257,7 +277,7 @@ export default function App() {
       <ThemeProvider>
         <div className="min-h-screen flex flex-col bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-sans antialiased transition-colors">
           {/* Offline Sync Banner */}
-          <ServiceWorkerRegister />
+          <ServiceWorkerRegister currentUser={currentUser} onLogAudit={handleLogAudit} />
 
           {/* Main Top Header */}
           <header className="sticky top-0 z-30 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 shadow-2xs">
@@ -313,7 +333,31 @@ export default function App() {
                   currentUser={currentUser}
                   onSelectUser={(u) => {
                     setCurrentUser(u);
-                    handleLogAudit('ROLE_SWITCH', `Switched active role to ${u.role}`);
+                    handleLogAudit('ROLE_SWITCH', `Switched active user to ${u.name} (${u.role})`);
+                    if (u.role === 'PARENT') {
+                      setActiveTab('parent-portal');
+                    } else if (u.role === 'STUDENT') {
+                      setActiveTab('student-portal');
+                    } else if (u.role === 'CLASS_CAPTAIN') {
+                      setActiveTab('messages');
+                    } else if (u.role === 'BURSAR') {
+                      setActiveTab('fees');
+                    }
+                  }}
+                  onRoleChange={(role) => {
+                    setCurrentUser((prev) => ({ ...prev, role }));
+                    handleLogAudit('ROLE_SWITCH', `Switched active role to ${role}`);
+                    if (role === 'PARENT') {
+                      setActiveTab('parent-portal');
+                    } else if (role === 'STUDENT') {
+                      setActiveTab('student-portal');
+                    } else if (role === 'CLASS_CAPTAIN') {
+                      setActiveTab('messages');
+                    } else if (role === 'TEACHER') {
+                      setActiveTab('gradebook');
+                    } else if (role === 'BURSAR') {
+                      setActiveTab('fees');
+                    }
                   }}
                 />
 
@@ -432,6 +476,89 @@ export default function App() {
                   badgeVariant="primary"
                 />
                 <SidebarNavItem
+                  icon={Users}
+                  label="Parent & Guardian Portal"
+                  isActive={activeTab === 'parent-portal'}
+                  onClick={() => {
+                    setActiveTab('parent-portal');
+                    setMobileMenuOpen(false);
+                  }}
+                  badge="Multi-Child"
+                  badgeVariant="primary"
+                />
+                <SidebarNavItem
+                  icon={MessageSquare}
+                  label="Communications Hub"
+                  isActive={activeTab === 'messages'}
+                  onClick={() => {
+                    setActiveTab('messages');
+                    setMobileMenuOpen(false);
+                  }}
+                  badge="SMS Guard"
+                  badgeVariant="success"
+                />
+                <SidebarNavItem
+                  icon={CreditCard}
+                  label="Fees & Payments"
+                  isActive={activeTab === 'fees'}
+                  onClick={() => {
+                    setActiveTab('fees');
+                    setMobileMenuOpen(false);
+                  }}
+                  badge="Step 15"
+                  badgeVariant="success"
+                />
+                {currentUser.role !== 'STUDENT' && currentUser.role !== 'PARENT' && (
+                  <SidebarNavItem
+                    icon={ShieldAlert}
+                    label="Disciplinary Records"
+                    isActive={activeTab === 'disciplinary'}
+                    onClick={() => {
+                      setActiveTab('disciplinary');
+                      setMobileMenuOpen(false);
+                    }}
+                    badge="Private"
+                    badgeVariant="warning"
+                  />
+                )}
+                <SidebarNavItem
+                  icon={Sparkles}
+                  label="AI Suggestion Box"
+                  isActive={activeTab === 'suggestions'}
+                  onClick={() => {
+                    setActiveTab('suggestions');
+                    setMobileMenuOpen(false);
+                  }}
+                  badge="AI Sorted"
+                  badgeVariant="primary"
+                />
+                {currentUser.role !== 'STUDENT' && currentUser.role !== 'PARENT' && (
+                  <SidebarNavItem
+                    icon={Banknote}
+                    label="Staff Payroll & Payslips"
+                    isActive={activeTab === 'payroll'}
+                    onClick={() => {
+                      setActiveTab('payroll');
+                      setMobileMenuOpen(false);
+                    }}
+                    badge="₦ Net"
+                    badgeVariant="success"
+                  />
+                )}
+                {['SUPER_ADMIN', 'PRINCIPAL', 'ACADEMIC_DIRECTOR', 'BURSAR'].includes(currentUser.role) && (
+                  <SidebarNavItem
+                    icon={Database}
+                    label="Data Export & Backup"
+                    isActive={activeTab === 'backup'}
+                    onClick={() => {
+                      setActiveTab('backup');
+                      setMobileMenuOpen(false);
+                    }}
+                    badge="Admin"
+                    badgeVariant="warning"
+                  />
+                )}
+                <SidebarNavItem
                   icon={UploadCloud}
                   label="Data Migration Importer"
                   isActive={activeTab === 'data-migration'}
@@ -457,7 +584,7 @@ export default function App() {
 
           {/* Sub Navigation Bar for Desktop */}
           <nav className="hidden md:block bg-white dark:bg-slate-900/60 border-b border-slate-200 dark:border-slate-800">
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center gap-6 h-12 text-sm">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center gap-5 h-12 text-sm overflow-x-auto no-scrollbar whitespace-nowrap">
               <button
                 type="button"
                 onClick={() => setActiveTab('dashboard')}
@@ -613,9 +740,127 @@ export default function App() {
                 <GraduationCap className="w-4 h-4" />
                 <span>Student Portal</span>
                 <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-indigo-100 text-indigo-800 dark:bg-indigo-950 dark:text-indigo-300 font-semibold">
-                  Results & Feed
+                  Results
                 </span>
               </button>
+
+              <button
+                type="button"
+                onClick={() => setActiveTab('parent-portal')}
+                className={`h-full border-b-2 font-medium flex items-center gap-2 transition-all cursor-pointer ${
+                  activeTab === 'parent-portal'
+                    ? 'border-rose-600 text-rose-600 dark:border-rose-400 dark:text-rose-400 font-bold'
+                    : 'border-transparent text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200'
+                }`}
+              >
+                <Users className="w-4 h-4" />
+                <span>Parent Portal</span>
+                <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300 font-semibold">
+                  Multi-Child
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setActiveTab('messages')}
+                className={`h-full border-b-2 font-medium flex items-center gap-2 transition-all cursor-pointer ${
+                  activeTab === 'messages'
+                    ? 'border-indigo-600 text-indigo-600 dark:border-indigo-400 dark:text-indigo-400 font-bold'
+                    : 'border-transparent text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200'
+                }`}
+              >
+                <MessageSquare className="w-4 h-4" />
+                <span>Communications</span>
+                <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-indigo-100 text-indigo-800 dark:bg-indigo-950 dark:text-indigo-300 font-semibold">
+                  SMS Guard
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setActiveTab('fees')}
+                className={`h-full border-b-2 font-medium flex items-center gap-2 transition-all cursor-pointer ${
+                  activeTab === 'fees'
+                    ? 'border-indigo-600 text-indigo-600 dark:border-indigo-400 dark:text-indigo-400 font-bold'
+                    : 'border-transparent text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200'
+                }`}
+              >
+                <CreditCard className="w-4 h-4" />
+                <span>Fees & Payments</span>
+                <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 font-semibold">
+                  ₦ Ledger
+                </span>
+              </button>
+
+              {currentUser.role !== 'STUDENT' && currentUser.role !== 'PARENT' && (
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('disciplinary')}
+                  className={`h-full border-b-2 font-medium flex items-center gap-2 transition-all cursor-pointer ${
+                    activeTab === 'disciplinary'
+                      ? 'border-amber-600 text-amber-600 dark:border-amber-400 dark:text-amber-400 font-bold'
+                      : 'border-transparent text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200'
+                  }`}
+                >
+                  <ShieldAlert className="w-4 h-4" />
+                  <span>Disciplinary Log</span>
+                  <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 font-semibold">
+                    Private
+                  </span>
+                </button>
+              )}
+
+              <button
+                type="button"
+                onClick={() => setActiveTab('suggestions')}
+                className={`h-full border-b-2 font-medium flex items-center gap-2 transition-all cursor-pointer ${
+                  activeTab === 'suggestions'
+                    ? 'border-indigo-600 text-indigo-600 dark:border-indigo-400 dark:text-indigo-400 font-bold'
+                    : 'border-transparent text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200'
+                }`}
+              >
+                <Sparkles className="w-4 h-4" />
+                <span>Suggestion Box</span>
+                <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-indigo-100 text-indigo-800 dark:bg-indigo-950 dark:text-indigo-300 font-semibold">
+                  AI Sorted
+                </span>
+              </button>
+
+              {currentUser.role !== 'STUDENT' && currentUser.role !== 'PARENT' && (
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('payroll')}
+                  className={`h-full border-b-2 font-medium flex items-center gap-2 transition-all cursor-pointer ${
+                    activeTab === 'payroll'
+                      ? 'border-emerald-600 text-emerald-600 dark:border-emerald-400 dark:text-emerald-400 font-bold'
+                      : 'border-transparent text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200'
+                  }`}
+                >
+                  <Banknote className="w-4 h-4" />
+                  <span>Staff Payroll</span>
+                  <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 font-semibold">
+                    ₦ Net
+                  </span>
+                </button>
+              )}
+
+              {['SUPER_ADMIN', 'PRINCIPAL', 'ACADEMIC_DIRECTOR', 'BURSAR'].includes(currentUser.role) && (
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('backup')}
+                  className={`h-full border-b-2 font-medium flex items-center gap-2 transition-all cursor-pointer ${
+                    activeTab === 'backup'
+                      ? 'border-rose-600 text-rose-600 dark:border-rose-400 dark:text-rose-400 font-bold'
+                      : 'border-transparent text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200'
+                  }`}
+                >
+                  <Database className="w-4 h-4" />
+                  <span>Backup & Export</span>
+                  <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300 font-semibold">
+                    SHA-256
+                  </span>
+                </button>
+              )}
 
               <button
                 type="button"
@@ -746,6 +991,73 @@ export default function App() {
                   window.location.hash = `/verify-credential/${uuid}`;
                   setPublicVerificationUuid(uuid);
                 }}
+              />
+            )}
+
+            {activeTab === 'parent-portal' && (
+              <ParentPortalPage
+                currentUser={currentUser}
+                allStudents={students}
+                onOpenReportCardModal={(student) => {
+                  const allReports = getAllPublishedReportCards();
+                  const report = allReports.find(
+                    (r) => r.studentId === student.id || r.studentRegNumber === student.admissionNumber
+                  );
+                  if (report) {
+                    window.location.hash = `/verify-credential/${report.credentialUuid}`;
+                    setPublicVerificationUuid(report.credentialUuid);
+                  } else {
+                    alert(`Report card for ${student.firstName} ${student.lastName} will be accessible upon final term sign-off.`);
+                  }
+                }}
+                onOpenMessagingTab={() => {
+                  setActiveTab('messages');
+                }}
+              />
+            )}
+
+            {activeTab === 'messages' && (
+              <CommunicationsHubPage
+                currentUser={currentUser}
+                levels={levels}
+                allStudents={students}
+              />
+            )}
+
+            {activeTab === 'fees' && (
+              <FeeManagementPage
+                levels={levels}
+                currentUser={currentUser}
+                onLogAudit={handleLogAudit}
+              />
+            )}
+
+            {activeTab === 'disciplinary' && (
+              <DisciplinaryLogPage
+                currentUser={currentUser}
+                allStudents={students}
+                onLogAudit={handleLogAudit}
+              />
+            )}
+
+            {activeTab === 'suggestions' && (
+              <SuggestionBoxPage
+                currentUser={currentUser}
+                onLogAudit={handleLogAudit}
+              />
+            )}
+
+            {activeTab === 'payroll' && (
+              <PayrollPage
+                currentUser={currentUser}
+                onLogAudit={handleLogAudit}
+              />
+            )}
+
+            {activeTab === 'backup' && (
+              <DataExportBackupPage
+                currentUser={currentUser}
+                onLogAudit={handleLogAudit}
               />
             )}
 
