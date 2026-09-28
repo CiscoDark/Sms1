@@ -45,12 +45,12 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
             id={inputId}
             ref={ref}
             disabled={disabled}
-            className={`w-full rounded-lg text-sm bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 border transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-offset-0 disabled:bg-slate-100 disabled:dark:bg-slate-800 disabled:cursor-not-allowed ${
+            className={`w-full rounded-xl text-sm bg-white/75 dark:bg-slate-900/75 backdrop-blur-md text-slate-900 dark:text-slate-100 border transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-offset-0 disabled:bg-slate-100/50 disabled:dark:bg-slate-800/50 disabled:cursor-not-allowed shadow-[inset_0_1px_2px_rgba(0,0,0,0.02)] ${
               leftIcon ? 'pl-9.5' : 'pl-3.5'
             } ${rightIcon ? 'pr-9.5' : 'pr-3.5'} py-2 min-h-[40px] ${
               error
                 ? 'border-rose-500 focus:border-rose-500 focus:ring-rose-500/20'
-                : 'border-slate-300 dark:border-slate-700 focus:border-indigo-600 focus:ring-indigo-600/20'
+                : 'border-white/70 dark:border-slate-700/80 focus:border-indigo-600 focus:ring-indigo-600/20 focus:bg-white/90 dark:focus:bg-slate-900/90'
             } ${className}`}
             {...props}
           />

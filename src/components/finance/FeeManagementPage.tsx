@@ -24,6 +24,10 @@ import {
   RefreshCw,
   Tag,
   GraduationCap,
+  Printer,
+  ArrowUp,
+  ArrowDown,
+  ArrowUpDown,
 } from 'lucide-react';
 import {
   ClassLevel,
@@ -74,10 +78,21 @@ export const FeeManagementPage: React.FC<FeeManagementPageProps> = ({
     getAllStudentFeeAccounts()
   );
 
-  // Filters
+  // Filters & Sorting
   const [selectedLevelFilter, setSelectedLevelFilter] = useState<string>('ALL');
   const [selectedStatusFilter, setSelectedStatusFilter] = useState<'ALL' | 'CLEARED' | 'PARTIAL' | 'UNPAID'>('ALL');
   const [searchQuery, setSearchQuery] = useState<string>('');
+  const [sortField, setSortField] = useState<'name' | 'billed' | 'paid' | 'balance' | 'progress' | 'status'>('name');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
+
+  const handleToggleSort = (field: 'name' | 'billed' | 'paid' | 'balance' | 'progress' | 'status') => {
+    if (sortField === field) {
+      setSortOrder((prev) => (prev === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setSortField(field);
+      setSortOrder('asc');
+    }
+  };
 
   // Modals state
   const [paymentTargetAccount, setPaymentTargetAccount] = useState<StudentFeeAccount | null>(null);
@@ -110,9 +125,9 @@ export const FeeManagementPage: React.FC<FeeManagementPageProps> = ({
     };
   }, [accounts]);
 
-  // Filtered accounts list
+  // Filtered & sorted accounts list
   const filteredAccounts = useMemo(() => {
-    return accounts.filter((acc) => {
+    const list = accounts.filter((acc) => {
       if (selectedLevelFilter !== 'ALL' && acc.classLevel !== selectedLevelFilter) {
         return false;
       }
@@ -127,7 +142,25 @@ export const FeeManagementPage: React.FC<FeeManagementPageProps> = ({
       }
       return true;
     });
-  }, [accounts, selectedLevelFilter, selectedStatusFilter, searchQuery]);
+
+    return [...list].sort((a, b) => {
+      let cmp = 0;
+      if (sortField === 'name') {
+        cmp = a.studentName.localeCompare(b.studentName);
+      } else if (sortField === 'billed') {
+        cmp = a.totalBilled - b.totalBilled;
+      } else if (sortField === 'paid') {
+        cmp = a.totalPaid - b.totalPaid;
+      } else if (sortField === 'balance') {
+        cmp = (a.totalBilled - a.totalPaid) - (b.totalBilled - b.totalPaid);
+      } else if (sortField === 'progress') {
+        cmp = a.percentagePaid - b.percentagePaid;
+      } else if (sortField === 'status') {
+        cmp = a.status.localeCompare(b.status);
+      }
+      return sortOrder === 'asc' ? cmp : -cmp;
+    });
+  }, [accounts, selectedLevelFilter, selectedStatusFilter, searchQuery, sortField, sortOrder]);
 
   // Handler for saving a fee structure
   const handleSaveStructure = (struct: ClassTermFeeStructure) => {
@@ -342,7 +375,7 @@ export const FeeManagementPage: React.FC<FeeManagementPageProps> = ({
           {/* Table Filters Header */}
           <div className="p-5 border-b border-slate-200 dark:border-slate-800 flex flex-wrap items-center justify-between gap-4 bg-slate-50/60 dark:bg-slate-800/30">
             {/* Search Input */}
-            <div className="relative min-w-[260px] flex-1 max-w-md">
+            <div className="relative w-full sm:w-auto sm:min-w-[260px] flex-1 max-w-md">
               <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
               <input
                 type="text"
@@ -394,17 +427,95 @@ export const FeeManagementPage: React.FC<FeeManagementPageProps> = ({
           </div>
 
           {/* Accounts Roster Table */}
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
+          <div className="overflow-x-auto touch-scroll">
+            <table className="w-full text-left text-xs min-w-[700px]">
               <thead className="bg-slate-100/70 dark:bg-slate-800/60 text-slate-500 font-semibold border-b border-slate-200 dark:border-slate-800">
                 <tr>
-                  <th className="p-4">Student Dossier</th>
+                  <th className="p-4">
+                    <button
+                      type="button"
+                      onClick={() => handleToggleSort('name')}
+                      className="flex items-center gap-1.5 font-bold hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors cursor-pointer"
+                    >
+                      <span>Student Dossier</span>
+                      {sortField === 'name' ? (
+                        sortOrder === 'asc' ? <ArrowUp className="w-3 h-3 text-indigo-600" /> : <ArrowDown className="w-3 h-3 text-indigo-600" />
+                      ) : (
+                        <ArrowUpDown className="w-3 h-3 opacity-40" />
+                      )}
+                    </button>
+                  </th>
                   <th className="p-4">Class & Arm</th>
-                  <th className="p-4 text-center">Payment Progress</th>
-                  <th className="p-4 text-right">Total Billed</th>
-                  <th className="p-4 text-right">Amount Paid</th>
-                  <th className="p-4 text-right">Balance Due</th>
-                  <th className="p-4">Status</th>
+                  <th className="p-4 text-center">
+                    <button
+                      type="button"
+                      onClick={() => handleToggleSort('progress')}
+                      className="inline-flex items-center gap-1.5 font-bold hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors cursor-pointer"
+                    >
+                      <span>Payment Progress</span>
+                      {sortField === 'progress' ? (
+                        sortOrder === 'asc' ? <ArrowUp className="w-3 h-3 text-indigo-600" /> : <ArrowDown className="w-3 h-3 text-indigo-600" />
+                      ) : (
+                        <ArrowUpDown className="w-3 h-3 opacity-40" />
+                      )}
+                    </button>
+                  </th>
+                  <th className="p-4 text-right">
+                    <button
+                      type="button"
+                      onClick={() => handleToggleSort('billed')}
+                      className="ml-auto flex items-center gap-1.5 font-bold hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors cursor-pointer"
+                    >
+                      <span>Total Billed</span>
+                      {sortField === 'billed' ? (
+                        sortOrder === 'asc' ? <ArrowUp className="w-3 h-3 text-indigo-600" /> : <ArrowDown className="w-3 h-3 text-indigo-600" />
+                      ) : (
+                        <ArrowUpDown className="w-3 h-3 opacity-40" />
+                      )}
+                    </button>
+                  </th>
+                  <th className="p-4 text-right">
+                    <button
+                      type="button"
+                      onClick={() => handleToggleSort('paid')}
+                      className="ml-auto flex items-center gap-1.5 font-bold hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors cursor-pointer"
+                    >
+                      <span>Amount Paid</span>
+                      {sortField === 'paid' ? (
+                        sortOrder === 'asc' ? <ArrowUp className="w-3 h-3 text-indigo-600" /> : <ArrowDown className="w-3 h-3 text-indigo-600" />
+                      ) : (
+                        <ArrowUpDown className="w-3 h-3 opacity-40" />
+                      )}
+                    </button>
+                  </th>
+                  <th className="p-4 text-right">
+                    <button
+                      type="button"
+                      onClick={() => handleToggleSort('balance')}
+                      className="ml-auto flex items-center gap-1.5 font-bold hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors cursor-pointer"
+                    >
+                      <span>Balance Due</span>
+                      {sortField === 'balance' ? (
+                        sortOrder === 'asc' ? <ArrowUp className="w-3 h-3 text-indigo-600" /> : <ArrowDown className="w-3 h-3 text-indigo-600" />
+                      ) : (
+                        <ArrowUpDown className="w-3 h-3 opacity-40" />
+                      )}
+                    </button>
+                  </th>
+                  <th className="p-4">
+                    <button
+                      type="button"
+                      onClick={() => handleToggleSort('status')}
+                      className="flex items-center gap-1.5 font-bold hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors cursor-pointer"
+                    >
+                      <span>Status</span>
+                      {sortField === 'status' ? (
+                        sortOrder === 'asc' ? <ArrowUp className="w-3 h-3 text-indigo-600" /> : <ArrowDown className="w-3 h-3 text-indigo-600" />
+                      ) : (
+                        <ArrowUpDown className="w-3 h-3 opacity-40" />
+                      )}
+                    </button>
+                  </th>
                   <th className="p-4 text-right">Actions</th>
                 </tr>
               </thead>
@@ -692,7 +803,15 @@ export const FeeManagementPage: React.FC<FeeManagementPageProps> = ({
               )}
             </div>
 
-            <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex justify-end">
+            <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => window.print()}
+                leftIcon={<Printer className="w-3.5 h-3.5" />}
+              >
+                Print Fee Statement
+              </Button>
               <Button
                 variant="secondary"
                 size="sm"

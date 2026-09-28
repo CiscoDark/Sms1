@@ -28,7 +28,7 @@ export const SidebarNavItem: React.FC<SidebarNavItemProps> = ({
     <button
       type="button"
       onClick={onClick}
-      className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150 select-none cursor-pointer ${
+      className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150 select-none cursor-pointer active:scale-[0.98] active:bg-slate-200/50 dark:active:bg-slate-800/70 ${
         isActive
           ? 'bg-indigo-50 text-indigo-700 dark:bg-indigo-950/50 dark:text-indigo-300 font-semibold shadow-2xs'
           : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/80 dark:text-slate-400 dark:hover:text-slate-200 dark:hover:bg-slate-800/60'

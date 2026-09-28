@@ -16,6 +16,9 @@ import {
   CheckCircle2,
   Lock,
   ChevronDown,
+  LayoutGrid,
+  CalendarDays,
+  Smartphone,
 } from 'lucide-react';
 import {
   ClassLevel,
@@ -102,6 +105,10 @@ export const ClassTimetablePage: React.FC<ClassTimetablePageProps> = ({
 
   // Toast Notification
   const [toastMessage, setToastMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
+  // Responsive View Mode: 'matrix' (full weekly grid) or 'day' (stacked schedule for selected day)
+  const [viewMode, setViewMode] = useState<'matrix' | 'day'>('matrix');
+  const [activeMobileDay, setActiveMobileDay] = useState<DayOfWeek>('MONDAY');
 
   const showToast = (text: string, type: 'success' | 'error' = 'success') => {
     setToastMessage({ type, text });
@@ -510,7 +517,7 @@ export const ClassTimetablePage: React.FC<ClassTimetablePageProps> = ({
       <Card className="p-4 bg-white dark:bg-slate-900 flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="flex flex-col sm:flex-row sm:items-center gap-4">
           {/* Level Dropdown */}
-          <div className="space-y-1">
+          <div className="space-y-1 flex-1 sm:flex-initial">
             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
               Education Level
             </span>
@@ -518,7 +525,7 @@ export const ClassTimetablePage: React.FC<ClassTimetablePageProps> = ({
               <select
                 value={selectedLevelId}
                 onChange={(e) => setSelectedLevelId(e.target.value)}
-                className="appearance-none pr-8 pl-3 py-1.5 rounded-xl text-xs font-semibold bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-slate-100 border border-slate-300/80 dark:border-slate-700 min-w-[160px] focus:outline-none focus:ring-2 focus:ring-indigo-600/20"
+                className="w-full sm:w-auto appearance-none pr-8 pl-3 py-1.5 rounded-xl text-xs font-semibold bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-slate-100 border border-slate-300/80 dark:border-slate-700 min-w-0 sm:min-w-[160px] focus:outline-none focus:ring-2 focus:ring-indigo-600/20"
               >
                 {levels.map((lvl) => (
                   <option key={lvl.id} value={lvl.id}>
@@ -531,7 +538,7 @@ export const ClassTimetablePage: React.FC<ClassTimetablePageProps> = ({
           </div>
 
           {/* Arm / Stream Dropdown */}
-          <div className="space-y-1">
+          <div className="space-y-1 flex-1 sm:flex-initial">
             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
               Stream / Classroom
             </span>
@@ -539,7 +546,7 @@ export const ClassTimetablePage: React.FC<ClassTimetablePageProps> = ({
               <select
                 value={selectedArmId}
                 onChange={(e) => setSelectedArmId(e.target.value)}
-                className="appearance-none pr-8 pl-3 py-1.5 rounded-xl text-xs font-semibold bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-slate-100 border border-slate-300/80 dark:border-slate-700 min-w-[180px] focus:outline-none focus:ring-2 focus:ring-indigo-600/20"
+                className="w-full sm:w-auto appearance-none pr-8 pl-3 py-1.5 rounded-xl text-xs font-semibold bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-slate-100 border border-slate-300/80 dark:border-slate-700 min-w-0 sm:min-w-[180px] focus:outline-none focus:ring-2 focus:ring-indigo-600/20"
               >
                 {selectedLevel?.arms.map((arm) => (
                   <option key={arm.id} value={arm.id}>
@@ -587,152 +594,339 @@ export const ClassTimetablePage: React.FC<ClassTimetablePageProps> = ({
         )}
       </Card>
 
-      {/* Timetable Weekly Matrix */}
-      <div className="overflow-x-auto rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs">
-        <table className="w-full text-left border-collapse min-w-[850px]">
-          {/* Header Days of Week */}
-          <thead>
-            <tr className="border-b border-slate-200 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-900/80 text-xs font-bold text-slate-700 dark:text-slate-300">
-              <th className="py-3 px-4 w-32 border-r border-slate-200 dark:border-slate-800 uppercase tracking-wider text-[11px] text-slate-500">
-                Time / Period
-              </th>
-              {DAYS_OF_WEEK.map((day) => (
-                <th
-                  key={day.key}
-                  className="py-3 px-3 text-center border-r last:border-r-0 border-slate-200 dark:border-slate-800"
-                >
-                  <div className="font-bold text-slate-900 dark:text-slate-100">{day.label}</div>
-                  <div className="text-[10px] text-slate-400 font-normal">{day.short} Schedule</div>
-                </th>
-              ))}
-            </tr>
-          </thead>
+      {/* View Mode Switcher & Mobile Day Tabs */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        {/* Toggle between Matrix view and Day view */}
+        <div className="flex items-center gap-1.5 p-1 bg-slate-100 dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700/60 self-start">
+          <button
+            type="button"
+            onClick={() => setViewMode('matrix')}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+              viewMode === 'matrix'
+                ? 'bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-xs'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+            }`}
+          >
+            <LayoutGrid className="w-3.5 h-3.5" />
+            <span>Weekly Matrix</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setViewMode('day')}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+              viewMode === 'day'
+                ? 'bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-xs'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+            }`}
+          >
+            <CalendarDays className="w-3.5 h-3.5" />
+            <span>Daily Schedule (Touch & Mobile)</span>
+          </button>
+        </div>
 
-          {/* Table Body (Time Periods) */}
-          <tbody className="divide-y divide-slate-200 dark:divide-slate-800 text-xs">
+        {/* Day pills if in Day View or on Mobile */}
+        {viewMode === 'day' && (
+          <div className="flex items-center gap-1 overflow-x-auto touch-scroll pb-1 no-scrollbar">
+            {DAYS_OF_WEEK.map((day) => {
+              const isSelected = activeMobileDay === day.key;
+              const daySlotsCount = currentArmSlots.filter((s) => s.day === day.key).length;
+              return (
+                <button
+                  key={day.key}
+                  type="button"
+                  onClick={() => setActiveMobileDay(day.key)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap cursor-pointer flex items-center gap-1.5 ${
+                    isSelected
+                      ? 'bg-indigo-600 text-white shadow-xs'
+                      : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:bg-slate-50'
+                  }`}
+                >
+                  <span>{day.label}</span>
+                  <span
+                    className={`text-[10px] px-1.5 py-0.2 rounded-full ${
+                      isSelected ? 'bg-indigo-700 text-indigo-100' : 'bg-slate-100 dark:bg-slate-700 text-slate-500'
+                    }`}
+                  >
+                    {daySlotsCount}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* VIEW 1: DAY SCHEDULE (Stacked cards optimized for mobile & tablet touch screens) */}
+      {viewMode === 'day' ? (
+        <div className="space-y-3">
+          <div className="flex items-center justify-between px-1">
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+              {DAYS_OF_WEEK.find((d) => d.key === activeMobileDay)?.label} Schedule for {selectedLevel?.name} - {selectedArm?.name}
+            </span>
+            <span className="text-xs text-slate-400">
+              {currentArmSlots.filter((s) => s.day === activeMobileDay).length} lessons assigned
+            </span>
+          </div>
+
+          <div className="space-y-2.5">
             {TIME_SLOT_DEFINITIONS.map((period) => {
-              // 1. Break Row (Morning Recess / Lunch Break)
+              // Break Row
               if (period.isBreak) {
                 const isLunch = period.periodNumber === -2;
                 return (
-                  <tr
+                  <div
                     key={period.label}
-                    className="bg-slate-100/60 dark:bg-slate-800/40 text-slate-600 dark:text-slate-400"
+                    className="p-3 rounded-xl bg-slate-100/80 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 flex items-center justify-between text-xs text-slate-600 dark:text-slate-400"
                   >
-                    <td className="py-2.5 px-4 font-semibold border-r border-slate-200 dark:border-slate-800 whitespace-nowrap">
-                      <div className="flex items-center gap-1.5">
-                        <Clock className="w-3.5 h-3.5 text-slate-400" />
-                        <span className="text-[11px]">
-                          {period.startTime} - {period.endTime}
-                        </span>
-                      </div>
-                    </td>
-                    <td
-                      colSpan={DAYS_OF_WEEK.length}
-                      className="py-2.5 px-4 text-center font-bold tracking-wide uppercase text-[11px] text-slate-500 dark:text-slate-400"
-                    >
-                      <div className="flex items-center justify-center gap-2">
-                        {isLunch ? (
-                          <Utensils className="w-4 h-4 text-amber-500" />
-                        ) : (
-                          <Coffee className="w-4 h-4 text-indigo-500" />
-                        )}
-                        <span>
-                          {period.label} ({period.startTime} - {period.endTime})
-                        </span>
-                      </div>
-                    </td>
-                  </tr>
+                    <div className="flex items-center gap-2 font-bold tracking-wide uppercase text-[11px]">
+                      {isLunch ? (
+                        <Utensils className="w-4 h-4 text-amber-500" />
+                      ) : (
+                        <Coffee className="w-4 h-4 text-indigo-500" />
+                      )}
+                      <span>{period.label}</span>
+                    </div>
+                    <div className="font-mono text-[11px] text-slate-500 dark:text-slate-400 flex items-center gap-1">
+                      <Clock className="w-3.5 h-3.5 text-slate-400" />
+                      {period.startTime} - {period.endTime}
+                    </div>
+                  </div>
                 );
               }
 
-              // 2. Regular Academic Period Row
+              // Academic Period Row
+              const slot = getSlotForCell(activeMobileDay, period.periodNumber);
+
               return (
-                <tr
+                <div
                   key={period.periodNumber}
-                  className="hover:bg-slate-50/40 dark:hover:bg-slate-800/20 transition-colors"
+                  className="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:border-indigo-300 dark:hover:border-indigo-800 transition-colors"
                 >
-                  {/* Period Label & Time */}
-                  <td className="py-3 px-4 font-medium border-r border-slate-200 dark:border-slate-800 bg-slate-50/30 dark:bg-slate-900/30 whitespace-nowrap align-top">
-                    <div className="font-bold text-slate-900 dark:text-slate-100">
-                      {period.label}
+                  {/* Period badge and time */}
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 flex flex-col items-center justify-center shrink-0">
+                      <span className="text-[10px] uppercase font-bold text-slate-400 leading-tight">Period</span>
+                      <span className="text-base font-black text-indigo-600 dark:text-indigo-400 leading-tight">
+                        {period.periodNumber}
+                      </span>
                     </div>
-                    <div className="text-[11px] text-slate-400 flex items-center gap-1 mt-0.5">
-                      <Clock className="w-3 h-3 text-slate-400" />
-                      {period.startTime} - {period.endTime}
+                    <div>
+                      <div className="font-bold text-sm text-slate-900 dark:text-slate-100">
+                        {period.label}
+                      </div>
+                      <div className="text-xs font-mono text-slate-400 flex items-center gap-1 mt-0.5">
+                        <Clock className="w-3 h-3 text-slate-400" />
+                        {period.startTime} - {period.endTime}
+                      </div>
                     </div>
-                  </td>
+                  </div>
 
-                  {/* Day Cells */}
-                  {DAYS_OF_WEEK.map((day) => {
-                    const slot = getSlotForCell(day.key, period.periodNumber);
-                    const isDragOver =
-                      dragOverCell?.day === day.key && dragOverCell?.periodNumber === period.periodNumber;
-
-                    return (
-                      <td
-                        key={`${day.key}-${period.periodNumber}`}
-                        onDragOver={(e) => handleDragOver(e, day.key, period.periodNumber)}
-                        onDragLeave={handleDragLeave}
-                        onDrop={(e) => handleDrop(e, day.key, period.periodNumber)}
-                        className={`p-2 border-r last:border-r-0 border-slate-200 dark:border-slate-800 align-top min-w-[150px] transition-colors relative ${
-                          isDragOver
-                            ? 'bg-indigo-50/80 dark:bg-indigo-950/50 ring-2 ring-indigo-500 ring-inset rounded-lg'
-                            : ''
-                        }`}
-                      >
-                        {slot ? (
-                          <TimetableSlotCard
-                            slot={slot}
-                            canEdit={canManage}
-                            onEdit={(s) =>
+                  {/* Slot or empty indicator */}
+                  <div className="flex-1 max-w-xl">
+                    {slot ? (
+                      <div className="w-full">
+                        <TimetableSlotCard
+                          slot={slot}
+                          canEdit={canManage}
+                          onEdit={(s) =>
+                            setEditModalState({
+                              isOpen: true,
+                              day: s.day,
+                              periodNumber: s.periodNumber,
+                              existingSlot: s,
+                            })
+                          }
+                          onDelete={handleDeleteSlot}
+                          onDragStart={handleDragStart}
+                          isDragging={draggedSlot?.id === slot.id}
+                        />
+                      </div>
+                    ) : (
+                      <div className="p-3 rounded-lg border border-dashed border-slate-200 dark:border-slate-800 flex items-center justify-between gap-2">
+                        <span className="text-xs text-slate-400 italic">No subject allocated (Free Period)</span>
+                        {canManage && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() =>
                               setEditModalState({
                                 isOpen: true,
-                                day: s.day,
-                                periodNumber: s.periodNumber,
-                                existingSlot: s,
+                                day: activeMobileDay,
+                                periodNumber: period.periodNumber,
+                                existingSlot: null,
                               })
                             }
-                            onDelete={handleDeleteSlot}
-                            onDragStart={handleDragStart}
-                            isDragging={draggedSlot?.id === slot.id}
-                          />
-                        ) : (
-                          <div className="h-full min-h-[96px] rounded-xl border border-dashed border-slate-200 dark:border-slate-800 flex flex-col items-center justify-center p-2 text-center group transition-all hover:border-slate-300 dark:hover:border-slate-700">
-                            {canManage ? (
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  setEditModalState({
-                                    isOpen: true,
-                                    day: day.key,
-                                    periodNumber: period.periodNumber,
-                                    existingSlot: null,
-                                  })
-                                }
-                                className="w-full h-full flex flex-col items-center justify-center gap-1 text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors py-3 cursor-pointer"
-                              >
-                                <Plus className="w-4 h-4 opacity-50 group-hover:opacity-100 group-hover:scale-110 transition-transform" />
-                                <span className="text-[10px] font-medium opacity-0 group-hover:opacity-100 transition-opacity">
-                                  Assign Subject
-                                </span>
-                              </button>
-                            ) : (
-                              <span className="text-[11px] text-slate-300 dark:text-slate-600 font-medium italic">
-                                Free Period
-                              </span>
-                            )}
-                          </div>
+                            leftIcon={<Plus className="w-3.5 h-3.5" />}
+                          >
+                            Assign
+                          </Button>
                         )}
-                      </td>
-                    );
-                  })}
-                </tr>
+                      </div>
+                    )}
+                  </div>
+                </div>
               );
             })}
-          </tbody>
-        </table>
-      </div>
+          </div>
+        </div>
+      ) : (
+        /* VIEW 2: FULL WEEKLY MATRIX TABLE */
+        <div className="space-y-1.5">
+          {/* Mobile scroll hint */}
+          <div className="md:hidden flex items-center justify-between text-[11px] text-slate-400 px-1">
+            <span className="flex items-center gap-1">
+              <Smartphone className="w-3.5 h-3.5 text-indigo-500" />
+              <span>Scroll horizontally to view all weekdays, or switch to "Daily Schedule" view</span>
+            </span>
+          </div>
+
+          <div className="overflow-x-auto touch-scroll rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs">
+            <table className="w-full text-left border-collapse min-w-[850px]">
+              {/* Header Days of Week */}
+              <thead>
+                <tr className="border-b border-slate-200 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-900/80 text-xs font-bold text-slate-700 dark:text-slate-300">
+                  <th className="py-3 px-4 w-32 border-r border-slate-200 dark:border-slate-800 uppercase tracking-wider text-[11px] text-slate-500">
+                    Time / Period
+                  </th>
+                  {DAYS_OF_WEEK.map((day) => (
+                    <th
+                      key={day.key}
+                      className="py-3 px-3 text-center border-r last:border-r-0 border-slate-200 dark:border-slate-800"
+                    >
+                      <div className="font-bold text-slate-900 dark:text-slate-100">{day.label}</div>
+                      <div className="text-[10px] text-slate-400 font-normal">{day.short} Schedule</div>
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+
+              {/* Table Body (Time Periods) */}
+              <tbody className="divide-y divide-slate-200 dark:divide-slate-800 text-xs">
+                {TIME_SLOT_DEFINITIONS.map((period) => {
+                  // 1. Break Row (Morning Recess / Lunch Break)
+                  if (period.isBreak) {
+                    const isLunch = period.periodNumber === -2;
+                    return (
+                      <tr
+                        key={period.label}
+                        className="bg-slate-100/60 dark:bg-slate-800/40 text-slate-600 dark:text-slate-400"
+                      >
+                        <td className="py-2.5 px-4 font-semibold border-r border-slate-200 dark:border-slate-800 whitespace-nowrap">
+                          <div className="flex items-center gap-1.5">
+                            <Clock className="w-3.5 h-3.5 text-slate-400" />
+                            <span className="text-[11px]">
+                              {period.startTime} - {period.endTime}
+                            </span>
+                          </div>
+                        </td>
+                        <td
+                          colSpan={DAYS_OF_WEEK.length}
+                          className="py-2.5 px-4 text-center font-bold tracking-wide uppercase text-[11px] text-slate-500 dark:text-slate-400"
+                        >
+                          <div className="flex items-center justify-center gap-2">
+                            {isLunch ? (
+                              <Utensils className="w-4 h-4 text-amber-500" />
+                            ) : (
+                              <Coffee className="w-4 h-4 text-indigo-500" />
+                            )}
+                            <span>
+                              {period.label} ({period.startTime} - {period.endTime})
+                            </span>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  }
+
+                  // 2. Regular Academic Period Row
+                  return (
+                    <tr
+                      key={period.periodNumber}
+                      className="hover:bg-slate-50/40 dark:hover:bg-slate-800/20 transition-colors"
+                    >
+                      {/* Period Label & Time */}
+                      <td className="py-3 px-4 font-medium border-r border-slate-200 dark:border-slate-800 bg-slate-50/30 dark:bg-slate-900/30 whitespace-nowrap align-top">
+                        <div className="font-bold text-slate-900 dark:text-slate-100">
+                          {period.label}
+                        </div>
+                        <div className="text-[11px] text-slate-400 flex items-center gap-1 mt-0.5">
+                          <Clock className="w-3 h-3 text-slate-400" />
+                          {period.startTime} - {period.endTime}
+                        </div>
+                      </td>
+
+                      {/* Day Cells */}
+                      {DAYS_OF_WEEK.map((day) => {
+                        const slot = getSlotForCell(day.key, period.periodNumber);
+                        const isDragOver =
+                          dragOverCell?.day === day.key && dragOverCell?.periodNumber === period.periodNumber;
+
+                        return (
+                          <td
+                            key={`${day.key}-${period.periodNumber}`}
+                            onDragOver={(e) => handleDragOver(e, day.key, period.periodNumber)}
+                            onDragLeave={handleDragLeave}
+                            onDrop={(e) => handleDrop(e, day.key, period.periodNumber)}
+                            className={`p-2 border-r last:border-r-0 border-slate-200 dark:border-slate-800 align-top min-w-[150px] transition-colors relative ${
+                              isDragOver
+                                ? 'bg-indigo-50/80 dark:bg-indigo-950/50 ring-2 ring-indigo-500 ring-inset rounded-lg'
+                                : ''
+                            }`}
+                          >
+                            {slot ? (
+                              <TimetableSlotCard
+                                slot={slot}
+                                canEdit={canManage}
+                                onEdit={(s) =>
+                                  setEditModalState({
+                                    isOpen: true,
+                                    day: s.day,
+                                    periodNumber: s.periodNumber,
+                                    existingSlot: s,
+                                  })
+                                }
+                                onDelete={handleDeleteSlot}
+                                onDragStart={handleDragStart}
+                                isDragging={draggedSlot?.id === slot.id}
+                              />
+                            ) : (
+                              <div className="h-full min-h-[96px] rounded-xl border border-dashed border-slate-200 dark:border-slate-800 flex flex-col items-center justify-center p-2 text-center group transition-all hover:border-slate-300 dark:hover:border-slate-700">
+                                {canManage ? (
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      setEditModalState({
+                                        isOpen: true,
+                                        day: day.key,
+                                        periodNumber: period.periodNumber,
+                                        existingSlot: null,
+                                      })
+                                    }
+                                    className="w-full h-full flex flex-col items-center justify-center gap-1 text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors py-3 cursor-pointer"
+                                  >
+                                    <Plus className="w-4 h-4 opacity-50 group-hover:opacity-100 group-hover:scale-110 transition-transform" />
+                                    <span className="text-[10px] font-medium opacity-0 group-hover:opacity-100 transition-opacity">
+                                      Assign Subject
+                                    </span>
+                                  </button>
+                                ) : (
+                                  <span className="text-[11px] text-slate-300 dark:text-slate-600 font-medium italic">
+                                    Free Period
+                                  </span>
+                                )}
+                              </div>
+                            )}
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
       {/* Footer Invariant Clarification Note */}
       <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-slate-500 dark:text-slate-400">

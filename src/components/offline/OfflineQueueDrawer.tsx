@@ -36,6 +36,7 @@ interface OfflineQueueDrawerProps {
   onClose: () => void;
   currentUser: UserProfile;
   onLogAudit?: (action: string, details: string) => void;
+  onConflictResolved?: () => void;
 }
 
 export const OfflineQueueDrawer: React.FC<OfflineQueueDrawerProps> = ({
@@ -43,6 +44,7 @@ export const OfflineQueueDrawer: React.FC<OfflineQueueDrawerProps> = ({
   onClose,
   currentUser,
   onLogAudit,
+  onConflictResolved,
 }) => {
   const [queue, setQueue] = useState<OfflineQueueItem[]>(() => getOfflineQueue());
   const [conflicts, setConflicts] = useState<CellConflict[]>(() => getActiveConflicts());
@@ -110,6 +112,7 @@ export const OfflineQueueDrawer: React.FC<OfflineQueueDrawerProps> = ({
     await resolveConflict(conflictId, choice, currentUser);
     setConflicts(getActiveConflicts());
     setQueue(getOfflineQueue());
+    onConflictResolved?.();
     onLogAudit?.(
       'SYNC_CONFLICT_RESOLVED',
       `Resolved conflict ${conflictId} choosing ${choice}`

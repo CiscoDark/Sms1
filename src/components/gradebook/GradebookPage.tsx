@@ -952,8 +952,8 @@ export const GradebookPage: React.FC<GradebookPageProps> = ({
           </span>
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs border-collapse">
+        <div className="overflow-x-auto touch-scroll">
+          <table className="w-full text-left text-xs border-collapse min-w-[780px]">
             <thead>
               <tr className="bg-slate-100/80 dark:bg-slate-800/80 border-b border-slate-200 dark:border-slate-800 font-bold text-slate-700 dark:text-slate-300">
                 <th className="p-3 w-12 text-center">#</th>

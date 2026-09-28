@@ -628,7 +628,7 @@ export const DailyAttendanceCheckIn: React.FC<DailyAttendanceCheckInProps> = ({
                     </div>
 
                     {/* Right Status Pill Selector Buttons */}
-                    <div className="flex items-center gap-1.5 self-end sm:self-auto">
+                    <div className="flex items-center gap-1.5 flex-wrap sm:flex-nowrap self-start sm:self-auto pt-1 sm:pt-0">
                       {/* Present */}
                       <button
                         type="button"

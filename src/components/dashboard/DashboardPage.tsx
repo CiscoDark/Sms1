@@ -15,6 +15,12 @@ import {
   FileSpreadsheet,
   UserPlus,
   Sparkles,
+  CreditCard,
+  Activity,
+  FileCheck,
+  TrendingUp,
+  Receipt,
+  UserCheck,
 } from 'lucide-react';
 import { AcademicSession, ClassLevel, AuditLog, Role } from '../../types';
 import { Card, Button, Badge, ProgressRing, CountUp, Table, TableHead, TableBody, TableRow, TableHeaderCell, TableCell } from '../../design-system';
@@ -63,11 +69,14 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
   return (
     <div className="space-y-6">
       {/* Hero Active Term Banner */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-indigo-950 via-slate-900 to-indigo-900 text-white p-6 sm:p-8 border border-indigo-900/60 shadow-md">
+      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-indigo-950/90 via-slate-900/90 to-indigo-900/90 backdrop-blur-2xl text-white p-6 sm:p-8 border border-white/15 shadow-[0_20px_50px_rgba(31,38,135,0.15)]">
+        <div className="absolute -top-24 -right-24 w-72 h-72 rounded-full bg-indigo-500/20 blur-3xl pointer-events-none" aria-hidden="true" />
+        <div className="absolute -bottom-24 -left-24 w-72 h-72 rounded-full bg-sky-500/15 blur-3xl pointer-events-none" aria-hidden="true" />
+
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div className="space-y-2">
             <div className="flex items-center gap-2.5 flex-wrap">
-              <span className="px-2.5 py-1 text-xs font-bold uppercase tracking-wider rounded-lg bg-indigo-500/30 text-indigo-200 border border-indigo-400/30 backdrop-blur-xs">
+              <span className="px-3 py-1 text-xs font-bold uppercase tracking-wider rounded-xl bg-white/10 text-indigo-200 border border-white/15 backdrop-blur-sm shadow-2xs">
                 Active Academic Session
               </span>
               <Badge variant="success" size="sm" hasDot>
@@ -93,7 +102,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
                 size="md"
                 onClick={onAdvanceTermRequest}
                 rightIcon={<ArrowRight className="w-4 h-4" />}
-                className="bg-indigo-600 hover:bg-indigo-500 text-white border-none shadow-sm font-semibold"
+                className="bg-indigo-600 hover:bg-indigo-500 text-white border border-indigo-400/30 shadow-[0_4px_16px_rgba(99,102,241,0.4)] font-semibold"
               >
                 Advance Academic Term
               </Button>
@@ -102,7 +111,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
               variant="outline"
               size="md"
               onClick={() => onNavigateTab('class-structure')}
-              className="border-white/30 text-white hover:bg-white/10"
+              className="border-white/30 text-white hover:bg-white/15 backdrop-blur-xs"
             >
               Class Structure
             </Button>
@@ -189,6 +198,81 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
             <span className="text-indigo-600 dark:text-indigo-400 font-medium">
               Verified
             </span>
+          </div>
+        </Card>
+      </div>
+
+      {/* Secondary Operational Metric Cards (Fees, Attendance, Admissions) */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        {/* Outstanding Fees */}
+        <Card className="p-5 space-y-2 border-l-4 border-l-rose-500">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+              Total Outstanding Fees
+            </span>
+            <div className="p-2 rounded-lg bg-rose-50 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400">
+              <CreditCard className="w-5 h-5" />
+            </div>
+          </div>
+          <div className="text-2xl font-bold text-slate-900 dark:text-slate-100">
+            <CountUp end={4850000} prefix="₦" duration={900} />
+          </div>
+          <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 pt-1 border-t border-slate-100 dark:border-slate-800">
+            <span className="text-rose-600 dark:text-rose-400 font-medium">18.4% uncollected balance</span>
+            <button
+              type="button"
+              onClick={() => onNavigateTab('fees' as any)}
+              className="text-indigo-600 dark:text-indigo-400 hover:underline cursor-pointer flex items-center gap-1"
+            >
+              <span>View Invoices</span>
+              <ArrowRight className="w-3 h-3" />
+            </button>
+          </div>
+        </Card>
+
+        {/* Weekly Attendance */}
+        <Card className="p-5 space-y-2 border-l-4 border-l-emerald-500">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+              Average Attendance (This Week)
+            </span>
+            <div className="p-2 rounded-lg bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400">
+              <UserCheck className="w-5 h-5" />
+            </div>
+          </div>
+          <div className="text-2xl font-bold text-slate-900 dark:text-slate-100 flex items-baseline gap-1.5">
+            <CountUp end={96.4} decimals={1} suffix="%" duration={850} />
+            <span className="text-xs font-normal text-emerald-600 font-medium">+1.2% vs last week</span>
+          </div>
+          <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 pt-1 border-t border-slate-100 dark:border-slate-800">
+            <span>High engagement</span>
+            <span className="text-emerald-600 font-medium">Above 95% SLA</span>
+          </div>
+        </Card>
+
+        {/* Pending Admissions */}
+        <Card className="p-5 space-y-2 border-l-4 border-l-sky-500">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+              Pending Admissions
+            </span>
+            <div className="p-2 rounded-lg bg-sky-50 dark:bg-sky-950/60 text-sky-600 dark:text-sky-400">
+              <UserPlus className="w-5 h-5" />
+            </div>
+          </div>
+          <div className="text-2xl font-bold text-slate-900 dark:text-slate-100">
+            <CountUp end={14} duration={750} /> Applications
+          </div>
+          <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 pt-1 border-t border-slate-100 dark:border-slate-800">
+            <span className="text-sky-600 dark:text-sky-400 font-medium">5 Entrance Exams Pending</span>
+            <button
+              type="button"
+              onClick={() => onNavigateTab('admissions')}
+              className="text-indigo-600 dark:text-indigo-400 hover:underline cursor-pointer flex items-center gap-1"
+            >
+              <span>Pipeline</span>
+              <ArrowRight className="w-3 h-3" />
+            </button>
           </div>
         </Card>
       </div>
@@ -586,6 +670,147 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
             >
               Open Gradebook
             </Button>
+          </div>
+        </div>
+      </div>
+
+      {/* Live Operations & Mock Activity Feed */}
+      <div className="space-y-3 pt-2">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Activity className="w-4 h-4 text-emerald-600" />
+            <h3 className="text-base font-bold text-slate-900 dark:text-slate-100">
+              Live Campus Operations & Recent Activity
+            </h3>
+          </div>
+          <span className="text-xs text-slate-400">Real-time mock event stream</span>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+          {/* Activity 1: Payment Recorded */}
+          <div className="p-3.5 rounded-xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xs flex items-start gap-3">
+            <div className="p-2 rounded-lg bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 shrink-0">
+              <Receipt className="w-4 h-4" />
+            </div>
+            <div className="min-w-0 flex-1 space-y-0.5">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wide">
+                  Tuition Payment
+                </span>
+                <span className="text-[10px] font-mono text-slate-400">8m ago</span>
+              </div>
+              <div className="text-xs font-bold text-slate-900 dark:text-slate-100 truncate">
+                ₦150,000 received for Chioma Okonjo
+              </div>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate">
+                Bank Transfer (Zenith Bank) • JSS 1 Gold • Verified by Bursar
+              </p>
+            </div>
+          </div>
+
+          {/* Activity 2: Report Card Published */}
+          <div className="p-3.5 rounded-xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xs flex items-start gap-3">
+            <div className="p-2 rounded-lg bg-blue-100 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 shrink-0">
+              <FileCheck className="w-4 h-4" />
+            </div>
+            <div className="min-w-0 flex-1 space-y-0.5">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wide">
+                  Report Card Snapshot
+                </span>
+                <span className="text-[10px] font-mono text-slate-400">24m ago</span>
+              </div>
+              <div className="text-xs font-bold text-slate-900 dark:text-slate-100 truncate">
+                Term 1 Snapshot Published (SSS 3 Diamond)
+              </div>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate">
+                Cryptographic hash generated • Invariant #3 frozen point-in-time
+              </p>
+            </div>
+          </div>
+
+          {/* Activity 3: New Admission Advanced */}
+          <div className="p-3.5 rounded-xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xs flex items-start gap-3">
+            <div className="p-2 rounded-lg bg-indigo-100 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 shrink-0">
+              <UserPlus className="w-4 h-4" />
+            </div>
+            <div className="min-w-0 flex-1 space-y-0.5">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-wide">
+                  Admissions Pipeline
+                </span>
+                <span className="text-[10px] font-mono text-slate-400">1h ago</span>
+              </div>
+              <div className="text-xs font-bold text-slate-900 dark:text-slate-100 truncate">
+                Tariq Balogun moved to &ldquo;Admitted&rdquo;
+              </div>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate">
+                Score: 88% Entrance Assessment • JSS 1 2024/2025 cohort
+              </p>
+            </div>
+          </div>
+
+          {/* Activity 4: Attendance Register */}
+          <div className="p-3.5 rounded-xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xs flex items-start gap-3">
+            <div className="p-2 rounded-lg bg-teal-100 dark:bg-teal-950/60 text-teal-600 dark:text-teal-400 shrink-0">
+              <CheckCircle2 className="w-4 h-4" />
+            </div>
+            <div className="min-w-0 flex-1 space-y-0.5">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-bold text-teal-600 dark:text-teal-400 uppercase tracking-wide">
+                  Daily Attendance
+                </span>
+                <span className="text-[10px] font-mono text-slate-400">2h ago</span>
+              </div>
+              <div className="text-xs font-bold text-slate-900 dark:text-slate-100 truncate">
+                Morning Roll Call Submitted
+              </div>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate">
+                JSS 1 Gold: 38 Present, 2 Late, 0 Absent by Mr. David Okonjo
+              </p>
+            </div>
+          </div>
+
+          {/* Activity 5: Offline Sync Completed */}
+          <div className="p-3.5 rounded-xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xs flex items-start gap-3">
+            <div className="p-2 rounded-lg bg-amber-100 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 shrink-0">
+              <Sparkles className="w-4 h-4" />
+            </div>
+            <div className="min-w-0 flex-1 space-y-0.5">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-bold text-amber-600 dark:text-amber-400 uppercase tracking-wide">
+                  Offline Write Queue
+                </span>
+                <span className="text-[10px] font-mono text-slate-400">3h ago</span>
+              </div>
+              <div className="text-xs font-bold text-slate-900 dark:text-slate-100 truncate">
+                Offline Queue Synchronized
+              </div>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate">
+                12 cached gradebook and attendance mutations synced with 0 conflicts
+              </p>
+            </div>
+          </div>
+
+          {/* Activity 6: Timetable Published */}
+          <div className="p-3.5 rounded-xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xs flex items-start gap-3">
+            <div className="p-2 rounded-lg bg-purple-100 dark:bg-purple-950/60 text-purple-600 dark:text-purple-400 shrink-0">
+              <Calendar className="w-4 h-4" />
+            </div>
+            <div className="min-w-0 flex-1 space-y-0.5">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-bold text-purple-600 dark:text-purple-400 uppercase tracking-wide">
+                  Master Timetable
+                </span>
+                <span className="text-[10px] font-mono text-slate-400">5h ago</span>
+              </div>
+              <div className="text-xs font-bold text-slate-900 dark:text-slate-100 truncate">
+                Term 1 Final Exam Timetable Live
+              </div>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate">
+                Hall allocation verified • Decoupled from private teacher availability
+              </p>
+            </div>
           </div>
         </div>
       </div>

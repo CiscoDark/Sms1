@@ -52,17 +52,17 @@ export const Modal: React.FC<ModalProps> = ({
           <motion.div
             {...modalMotion.backdrop}
             onClick={onClose}
-            className="fixed inset-0 bg-black/50 backdrop-blur-xs"
+            className="fixed inset-0 bg-slate-950/40 dark:bg-black/60 backdrop-blur-md"
           />
 
           {/* Dialog Content */}
           <motion.div
             {...modalMotion.dialog}
-            className={`relative w-full ${maxWidthStyles[maxWidth]} bg-white dark:bg-slate-900 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-800 overflow-hidden z-10 my-8`}
+            className={`relative w-full ${maxWidthStyles[maxWidth]} bg-white/88 dark:bg-slate-900/85 backdrop-blur-2xl rounded-3xl shadow-[0_25px_60px_rgba(0,0,0,0.18)] dark:shadow-[0_25px_60px_rgba(0,0,0,0.5)] border border-white/80 dark:border-white/10 overflow-hidden z-10 my-8`}
           >
             {/* Header */}
             {(title || description) && (
-              <div className="flex items-start justify-between p-5 sm:p-6 border-b border-slate-100 dark:border-slate-800">
+              <div className="flex items-start justify-between p-5 sm:p-6 border-b border-white/60 dark:border-white/10 bg-white/40 dark:bg-slate-800/40 backdrop-blur-xs">
                 <div className="space-y-1 pr-6">
                   {typeof title === 'string' ? (
                     <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-50">
@@ -80,7 +80,7 @@ export const Modal: React.FC<ModalProps> = ({
                 <button
                   type="button"
                   onClick={onClose}
-                  className="rounded-lg p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                  className="rounded-lg p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100/80 dark:hover:bg-slate-800/80 transition-colors cursor-pointer"
                   aria-label="Close dialog"
                 >
                   <X className="w-5 h-5" />
@@ -93,7 +93,7 @@ export const Modal: React.FC<ModalProps> = ({
 
             {/* Footer */}
             {footer && (
-              <div className="flex items-center justify-end gap-3 p-4 sm:p-5 bg-slate-50 dark:bg-slate-950/60 border-t border-slate-100 dark:border-slate-800">
+              <div className="flex items-center justify-end gap-3 p-4 sm:p-5 bg-slate-50/60 dark:bg-slate-950/60 backdrop-blur-sm border-t border-white/60 dark:border-white/10">
                 {footer}
               </div>
             )}

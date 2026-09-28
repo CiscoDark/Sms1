@@ -52,16 +52,16 @@ export const Drawer: React.FC<DrawerProps> = ({
           <motion.div
             {...drawerMotion.backdrop}
             onClick={onClose}
-            className="fixed inset-0 bg-black/50 backdrop-blur-xs"
+            className="fixed inset-0 bg-slate-950/40 dark:bg-black/60 backdrop-blur-md"
           />
 
           <div className="fixed inset-y-0 right-0 flex max-w-full pl-10">
             <motion.div
               {...drawerMotion.panel}
-              className={`w-screen ${widthStyles[width]} bg-white dark:bg-slate-900 shadow-2xl border-l border-slate-200 dark:border-slate-800 flex flex-col`}
+              className={`w-screen ${widthStyles[width]} bg-white/88 dark:bg-slate-900/85 backdrop-blur-2xl shadow-[0_25px_60px_rgba(0,0,0,0.25)] border-l border-white/80 dark:border-white/10 flex flex-col`}
             >
               {/* Header */}
-              <div className="flex items-start justify-between p-5 sm:p-6 border-b border-slate-100 dark:border-slate-800">
+              <div className="flex items-start justify-between p-5 sm:p-6 border-b border-white/60 dark:border-white/10 bg-white/40 dark:bg-slate-800/40 backdrop-blur-xs">
                 <div className="space-y-1 pr-4">
                   {typeof title === 'string' ? (
                     <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-50">
@@ -79,7 +79,7 @@ export const Drawer: React.FC<DrawerProps> = ({
                 <button
                   type="button"
                   onClick={onClose}
-                  className="rounded-lg p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                  className="rounded-lg p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100/80 dark:hover:bg-slate-800/80 transition-colors cursor-pointer"
                   aria-label="Close drawer"
                 >
                   <X className="w-5 h-5" />
@@ -91,7 +91,7 @@ export const Drawer: React.FC<DrawerProps> = ({
 
               {/* Footer */}
               {footer && (
-                <div className="flex items-center justify-end gap-3 p-4 sm:p-5 bg-slate-50 dark:bg-slate-950/60 border-t border-slate-100 dark:border-slate-800">
+                <div className="flex items-center justify-end gap-3 p-4 sm:p-5 bg-slate-50/60 dark:bg-slate-950/60 backdrop-blur-sm border-t border-white/60 dark:border-white/10">
                   {footer}
                 </div>
               )}

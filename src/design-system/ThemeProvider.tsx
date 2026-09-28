@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 
-type Theme = 'light' | 'dark' | 'system';
+export type Theme = 'light' | 'dark' | 'system';
 
 interface ThemeContextType {
   theme: Theme;
@@ -11,7 +11,28 @@ interface ThemeContextType {
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
+function applyThemeToDom(resolved: 'light' | 'dark') {
+  if (typeof document === 'undefined') return;
+  const root = document.documentElement;
+  if (resolved === 'dark') {
+    root.classList.add('dark');
+    document.body.classList.add('dark');
+    root.setAttribute('data-theme', 'dark');
+    root.style.colorScheme = 'dark';
+  } else {
+    root.classList.remove('dark');
+    document.body.classList.remove('dark');
+    root.setAttribute('data-theme', 'light');
+    root.style.colorScheme = 'light';
+  }
+}
+
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
+  const outerContext = useContext(ThemeContext);
+  if (outerContext) {
+    return <>{children}</>;
+  }
+
   const [theme, setTheme] = useState<Theme>(() => {
     if (typeof window !== 'undefined') {
       const stored = localStorage.getItem('sms-theme') as Theme | null;
@@ -20,32 +41,62 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     return 'light';
   });
 
-  const [actualTheme, setActualTheme] = useState<'light' | 'dark'>('light');
+  const [actualTheme, setActualTheme] = useState<'light' | 'dark'>(() => {
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem('sms-theme') as Theme | null;
+      if (stored === 'dark') return 'dark';
+      if (stored === 'light') return 'light';
+      if (stored === 'system') {
+        return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      }
+    }
+    return 'light';
+  });
 
   useEffect(() => {
-    const root = document.documentElement;
     let resolved: 'light' | 'dark' = 'light';
 
     if (theme === 'system') {
-      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-      resolved = prefersDark ? 'dark' : 'light';
+      const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+      resolved = mediaQuery.matches ? 'dark' : 'light';
+      setActualTheme(resolved);
+      applyThemeToDom(resolved);
+
+      const handleChange = (e: MediaQueryListEvent) => {
+        const newResolved = e.matches ? 'dark' : 'light';
+        setActualTheme(newResolved);
+        applyThemeToDom(newResolved);
+      };
+
+      mediaQuery.addEventListener('change', handleChange);
+      try {
+        localStorage.setItem('sms-theme', 'system');
+      } catch {
+        // ignore storage errors
+      }
+      return () => mediaQuery.removeEventListener('change', handleChange);
     } else {
       resolved = theme;
+      setActualTheme(resolved);
+      applyThemeToDom(resolved);
+      try {
+        localStorage.setItem('sms-theme', resolved);
+      } catch {
+        // ignore storage errors
+      }
     }
-
-    setActualTheme(resolved);
-
-    if (resolved === 'dark') {
-      root.classList.add('dark');
-    } else {
-      root.classList.remove('dark');
-    }
-
-    localStorage.setItem('sms-theme', theme);
   }, [theme]);
 
   const toggleTheme = () => {
-    setTheme(prev => (prev === 'dark' ? 'light' : 'dark'));
+    const nextTheme: Theme = actualTheme === 'dark' ? 'light' : 'dark';
+    setTheme(nextTheme);
+    setActualTheme(nextTheme);
+    applyThemeToDom(nextTheme);
+    try {
+      localStorage.setItem('sms-theme', nextTheme);
+    } catch {
+      // ignore
+    }
   };
 
   return (
@@ -62,3 +113,4 @@ export function useTheme() {
   }
   return context;
 }
+

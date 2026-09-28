@@ -2,13 +2,30 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, viewport-fit=cover" />
     <title>School Management System</title>
     <meta name="description" content="Enterprise school management platform featuring academic sessions, class structure, CSV/Excel data migration, admission pipeline, student dossiers, attendance heatmaps, decoupled timetables, exam/CA scheduling, teacher gradebook, AI-drafted remarks with teacher sign-off, immutable report card snapshots, printable PDFs with QR verification, student portal, multi-child parent portal with combined and per-child fee ledgers, fast multi-role switcher, multi-channel broadcast messaging with live GSM/Unicode SMS cost guard, and class captain peer-leadership communication channels." />
     <meta property="og:title" content="School Management System" />
     <meta property="og:description" content="Enterprise school management platform featuring academic sessions, class structure, CSV/Excel data migration, admission pipeline, student dossiers, attendance heatmaps, decoupled timetables, exam/CA scheduling, teacher gradebook, AI-drafted remarks with teacher sign-off, immutable report card snapshots, printable PDFs with QR verification, student portal, multi-child parent portal with combined and per-child fee ledgers, fast multi-role switcher, multi-channel broadcast messaging with live GSM/Unicode SMS cost guard, and class captain peer-leadership communication channels." />
     <meta property="og:type" content="website" />
     <meta name="twitter:card" content="summary_large_image" />
+    <script>
+      (function() {
+        try {
+          var stored = localStorage.getItem('sms-theme');
+          var isDark = stored === 'dark' || (stored !== 'light' && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
+          if (isDark) {
+            document.documentElement.classList.add('dark');
+            document.documentElement.setAttribute('data-theme', 'dark');
+            document.documentElement.style.colorScheme = 'dark';
+          } else {
+            document.documentElement.classList.remove('dark');
+            document.documentElement.setAttribute('data-theme', 'light');
+            document.documentElement.style.colorScheme = 'light';
+          }
+        } catch (e) {}
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

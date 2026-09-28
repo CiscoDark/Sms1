@@ -25,6 +25,9 @@ import {
   ChevronRight,
   Sparkles,
   QrCode,
+  ArrowUp,
+  ArrowDown,
+  ArrowUpDown,
 } from 'lucide-react';
 import { Button } from '../../design-system/components/Button';
 import { Badge } from '../../design-system/components/Badge';
@@ -60,6 +63,19 @@ export const StudentDirectoryPage: React.FC<StudentDirectoryPageProps> = ({
   const [hasMedicalAlertOnly, setHasMedicalAlertOnly] = useState<boolean>(false);
   const [viewMode, setViewMode] = useState<'table' | 'grid'>('table');
 
+  // Sorting state
+  const [sortField, setSortField] = useState<'name' | 'admissionNumber' | 'classLevel' | 'gender' | 'status'>('name');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
+
+  const handleToggleSort = (field: 'name' | 'admissionNumber' | 'classLevel' | 'gender' | 'status') => {
+    if (sortField === field) {
+      setSortOrder((prev) => (prev === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setSortField(field);
+      setSortOrder('asc');
+    }
+  };
+
   // Drawer state
   const [selectedStudentForDrawer, setSelectedStudentForDrawer] = useState<Student | null>(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
@@ -69,9 +85,9 @@ export const StudentDirectoryPage: React.FC<StudentDirectoryPageProps> = ({
   const [heatmapLevel, setHeatmapLevel] = useState<string>(levels[0]?.name || 'JSS 1');
   const [heatmapArm, setHeatmapArm] = useState<string>(levels[0]?.arms[0]?.name || 'Diamond');
 
-  // Filter students
+  // Filter & sort students
   const filteredStudents = useMemo(() => {
-    return students.filter((s) => {
+    const list = students.filter((s) => {
       // Search query
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase();
@@ -115,6 +131,26 @@ export const StudentDirectoryPage: React.FC<StudentDirectoryPageProps> = ({
 
       return true;
     });
+
+    return [...list].sort((a, b) => {
+      let cmp = 0;
+      if (sortField === 'name') {
+        const nameA = `${a.firstName} ${a.lastName}`.toLowerCase();
+        const nameB = `${b.firstName} ${b.lastName}`.toLowerCase();
+        cmp = nameA.localeCompare(nameB);
+      } else if (sortField === 'admissionNumber') {
+        cmp = a.admissionNumber.localeCompare(b.admissionNumber);
+      } else if (sortField === 'classLevel') {
+        const clsA = `${a.classLevel} ${a.classArm}`.toLowerCase();
+        const clsB = `${b.classLevel} ${b.classArm}`.toLowerCase();
+        cmp = clsA.localeCompare(clsB);
+      } else if (sortField === 'gender') {
+        cmp = a.gender.localeCompare(b.gender);
+      } else if (sortField === 'status') {
+        cmp = a.status.localeCompare(b.status);
+      }
+      return sortOrder === 'asc' ? cmp : -cmp;
+    });
   }, [
     students,
     searchQuery,
@@ -123,6 +159,8 @@ export const StudentDirectoryPage: React.FC<StudentDirectoryPageProps> = ({
     selectedGenderFilter,
     selectedStatusFilter,
     hasMedicalAlertOnly,
+    sortField,
+    sortOrder,
   ]);
 
   // Quick statistics
@@ -207,7 +245,7 @@ export const StudentDirectoryPage: React.FC<StudentDirectoryPageProps> = ({
         </div>
 
         {/* Module Sub-tabs */}
-        <div className="flex items-center bg-slate-100 dark:bg-slate-800 p-1 rounded-xl">
+        <div className="flex items-center bg-slate-100 dark:bg-slate-800 p-1 rounded-xl overflow-x-auto touch-scroll max-w-full">
           <button
             type="button"
             onClick={() => setActiveTab('directory')}
@@ -442,17 +480,82 @@ export const StudentDirectoryPage: React.FC<StudentDirectoryPageProps> = ({
           ) : viewMode === 'table' ? (
             /* High-density Table View */
             <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-2xs">
-              <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse text-xs">
+              <div className="overflow-x-auto touch-scroll">
+                <table className="w-full text-left border-collapse text-xs min-w-[700px]">
                   <thead>
                     <tr className="border-b border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800/50 text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                      <th className="py-3 px-4">Student</th>
-                      <th className="py-3 px-3">Admission #</th>
-                      <th className="py-3 px-3">Class & Arm</th>
-                      <th className="py-3 px-3">Gender</th>
+                      <th className="py-3 px-4">
+                        <button
+                          type="button"
+                          onClick={() => handleToggleSort('name')}
+                          className="flex items-center gap-1.5 font-bold hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors cursor-pointer"
+                        >
+                          <span>Student</span>
+                          {sortField === 'name' ? (
+                            sortOrder === 'asc' ? <ArrowUp className="w-3 h-3 text-indigo-600" /> : <ArrowDown className="w-3 h-3 text-indigo-600" />
+                          ) : (
+                            <ArrowUpDown className="w-3 h-3 opacity-40" />
+                          )}
+                        </button>
+                      </th>
+                      <th className="py-3 px-3">
+                        <button
+                          type="button"
+                          onClick={() => handleToggleSort('admissionNumber')}
+                          className="flex items-center gap-1.5 font-bold hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors cursor-pointer"
+                        >
+                          <span>Admission #</span>
+                          {sortField === 'admissionNumber' ? (
+                            sortOrder === 'asc' ? <ArrowUp className="w-3 h-3 text-indigo-600" /> : <ArrowDown className="w-3 h-3 text-indigo-600" />
+                          ) : (
+                            <ArrowUpDown className="w-3 h-3 opacity-40" />
+                          )}
+                        </button>
+                      </th>
+                      <th className="py-3 px-3">
+                        <button
+                          type="button"
+                          onClick={() => handleToggleSort('classLevel')}
+                          className="flex items-center gap-1.5 font-bold hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors cursor-pointer"
+                        >
+                          <span>Class & Arm</span>
+                          {sortField === 'classLevel' ? (
+                            sortOrder === 'asc' ? <ArrowUp className="w-3 h-3 text-indigo-600" /> : <ArrowDown className="w-3 h-3 text-indigo-600" />
+                          ) : (
+                            <ArrowUpDown className="w-3 h-3 opacity-40" />
+                          )}
+                        </button>
+                      </th>
+                      <th className="py-3 px-3">
+                        <button
+                          type="button"
+                          onClick={() => handleToggleSort('gender')}
+                          className="flex items-center gap-1.5 font-bold hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors cursor-pointer"
+                        >
+                          <span>Gender</span>
+                          {sortField === 'gender' ? (
+                            sortOrder === 'asc' ? <ArrowUp className="w-3 h-3 text-indigo-600" /> : <ArrowDown className="w-3 h-3 text-indigo-600" />
+                          ) : (
+                            <ArrowUpDown className="w-3 h-3 opacity-40" />
+                          )}
+                        </button>
+                      </th>
                       <th className="py-3 px-3">Guardian Info</th>
                       <th className="py-3 px-3">Medical / Clinical</th>
-                      <th className="py-3 px-3">Status</th>
+                      <th className="py-3 px-3">
+                        <button
+                          type="button"
+                          onClick={() => handleToggleSort('status')}
+                          className="flex items-center gap-1.5 font-bold hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors cursor-pointer"
+                        >
+                          <span>Status</span>
+                          {sortField === 'status' ? (
+                            sortOrder === 'asc' ? <ArrowUp className="w-3 h-3 text-indigo-600" /> : <ArrowDown className="w-3 h-3 text-indigo-600" />
+                          ) : (
+                            <ArrowUpDown className="w-3 h-3 opacity-40" />
+                          )}
+                        </button>
+                      </th>
                       <th className="py-3 px-4 text-right">Action</th>
                     </tr>
                   </thead>

@@ -295,7 +295,7 @@ export const CumulativeBroadsheetView: React.FC<CumulativeBroadsheetViewProps> =
 
       {/* Cumulative Broadsheet Table */}
       <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-xs overflow-hidden">
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto touch-scroll">
           <table className="w-full text-left text-xs border-collapse">
             <thead>
               <tr className="bg-slate-100/90 dark:bg-slate-800/90 border-b border-slate-200 dark:border-slate-800 font-bold text-slate-700 dark:text-slate-300">

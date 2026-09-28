@@ -17,6 +17,9 @@ import {
   FileCheck,
   Info,
   Filter,
+  LayoutGrid,
+  CalendarDays,
+  Smartphone,
 } from 'lucide-react';
 import {
   TeacherPersonalBlock,
@@ -102,6 +105,10 @@ export const TeacherPersonalTimetablePage: React.FC<TeacherPersonalTimetablePage
     type: 'success' | 'info' | 'error';
     text: string;
   } | null>(null);
+
+  // Responsive View Mode: 'matrix' (full weekly grid) or 'day' (stacked schedule for selected day)
+  const [viewMode, setViewMode] = useState<'matrix' | 'day'>('matrix');
+  const [activeMobileDay, setActiveMobileDay] = useState<DayOfWeek>('MONDAY');
 
   const showToast = (text: string, type: 'success' | 'info' | 'error' = 'success') => {
     setToastMessage({ type, text });
@@ -402,7 +409,7 @@ export const TeacherPersonalTimetablePage: React.FC<TeacherPersonalTimetablePage
               <select
                 value={selectedTeacherId}
                 onChange={(e) => setSelectedTeacherId(e.target.value)}
-                className="appearance-none pr-8 pl-3 py-1.5 rounded-xl text-xs font-bold bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-slate-100 border border-slate-300/80 dark:border-slate-700 min-w-[220px] focus:outline-none focus:ring-2 focus:ring-indigo-600/20 cursor-pointer"
+                className="w-full sm:w-auto appearance-none pr-8 pl-3 py-1.5 rounded-xl text-xs font-bold bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-slate-100 border border-slate-300/80 dark:border-slate-700 min-w-0 sm:min-w-[220px] focus:outline-none focus:ring-2 focus:ring-indigo-600/20 cursor-pointer"
               >
                 {FACULTY_MEMBERS.map((f) => (
                   <option key={f.id} value={f.id}>
@@ -548,185 +555,374 @@ export const TeacherPersonalTimetablePage: React.FC<TeacherPersonalTimetablePage
         </div>
       </div>
 
-      {/* Timetable Weekly Matrix */}
-      <div className="overflow-x-auto rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs">
-        <table className="w-full text-left border-collapse min-w-[850px]">
-          {/* Header Days of Week */}
-          <thead>
-            <tr className="border-b border-slate-200 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-900/80 text-xs font-bold text-slate-700 dark:text-slate-300">
-              <th className="py-3 px-4 w-32 border-r border-slate-200 dark:border-slate-800 uppercase tracking-wider text-[11px] text-slate-500">
-                Time / Period
-              </th>
-              {DAYS_OF_WEEK.map((day) => (
-                <th
-                  key={day.key}
-                  className="py-3 px-3 text-center border-r last:border-r-0 border-slate-200 dark:border-slate-800"
-                >
-                  <div className="font-bold text-slate-900 dark:text-slate-100">{day.label}</div>
-                  <div className="text-[10px] text-slate-400 font-normal">Personal Agenda</div>
-                </th>
-              ))}
-            </tr>
-          </thead>
+      {/* View Mode Switcher & Mobile Day Tabs */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        {/* Toggle between Matrix view and Day view */}
+        <div className="flex items-center gap-1.5 p-1 bg-slate-100 dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700/60 self-start">
+          <button
+            type="button"
+            onClick={() => setViewMode('matrix')}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+              viewMode === 'matrix'
+                ? 'bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-xs'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+            }`}
+          >
+            <LayoutGrid className="w-3.5 h-3.5" />
+            <span>Weekly Matrix</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setViewMode('day')}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+              viewMode === 'day'
+                ? 'bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-xs'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+            }`}
+          >
+            <CalendarDays className="w-3.5 h-3.5" />
+            <span>Daily Agenda (Touch & Mobile)</span>
+          </button>
+        </div>
 
-          {/* Table Body (Time Periods) */}
-          <tbody className="divide-y divide-slate-200 dark:divide-slate-800 text-xs">
+        {/* Day pills if in Day View */}
+        {viewMode === 'day' && (
+          <div className="flex items-center gap-1 overflow-x-auto touch-scroll pb-1 no-scrollbar">
+            {DAYS_OF_WEEK.map((day) => {
+              const isSelected = activeMobileDay === day.key;
+              const dayBlocksCount = teacherBlocks.filter((b) => b.day === day.key).length;
+              return (
+                <button
+                  key={day.key}
+                  type="button"
+                  onClick={() => setActiveMobileDay(day.key)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap cursor-pointer flex items-center gap-1.5 ${
+                    isSelected
+                      ? 'bg-indigo-600 text-white shadow-xs'
+                      : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:bg-slate-50'
+                  }`}
+                >
+                  <span>{day.label}</span>
+                  <span
+                    className={`text-[10px] px-1.5 py-0.2 rounded-full ${
+                      isSelected ? 'bg-indigo-700 text-indigo-100' : 'bg-slate-100 dark:bg-slate-700 text-slate-500'
+                    }`}
+                  >
+                    {dayBlocksCount}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* VIEW 1: DAY AGENDA (Touch-optimized list for mobile and tablet) */}
+      {viewMode === 'day' ? (
+        <div className="space-y-3">
+          <div className="flex items-center justify-between px-1">
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+              {DAYS_OF_WEEK.find((d) => d.key === activeMobileDay)?.label} Personal Agenda • {activeTeacher.name}
+            </span>
+            <span className="text-xs text-slate-400">
+              {teacherBlocks.filter((b) => b.day === activeMobileDay).length} activities scheduled
+            </span>
+          </div>
+
+          <div className="space-y-2.5">
             {TIME_SLOT_DEFINITIONS.map((period) => {
-              // Break Row
               if (period.isBreak) {
                 const isLunch = period.periodNumber === -2;
                 return (
-                  <tr
+                  <div
                     key={period.label}
-                    className="bg-slate-100/60 dark:bg-slate-800/40 text-slate-600 dark:text-slate-400"
+                    className="p-3 rounded-xl bg-slate-100/80 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 flex items-center justify-between text-xs text-slate-600 dark:text-slate-400"
                   >
-                    <td className="py-2 px-4 font-semibold border-r border-slate-200 dark:border-slate-800 whitespace-nowrap">
-                      <div className="flex items-center gap-1.5">
-                        <Clock className="w-3.5 h-3.5 text-slate-400" />
-                        <span className="text-[11px]">
-                          {period.startTime} - {period.endTime}
-                        </span>
-                      </div>
-                    </td>
-                    <td
-                      colSpan={DAYS_OF_WEEK.length}
-                      className="py-2 px-4 text-center font-bold tracking-wide uppercase text-[11px] text-slate-500 dark:text-slate-400"
-                    >
-                      <div className="flex items-center justify-center gap-2">
-                        {isLunch ? (
-                          <Utensils className="w-4 h-4 text-amber-500" />
-                        ) : (
-                          <Coffee className="w-4 h-4 text-indigo-500" />
-                        )}
-                        <span>
-                          {period.label} ({period.startTime} - {period.endTime})
-                        </span>
-                      </div>
-                    </td>
-                  </tr>
+                    <div className="flex items-center gap-2 font-bold tracking-wide uppercase text-[11px]">
+                      {isLunch ? (
+                        <Utensils className="w-4 h-4 text-amber-500" />
+                      ) : (
+                        <Coffee className="w-4 h-4 text-indigo-500" />
+                      )}
+                      <span>{period.label}</span>
+                    </div>
+                    <div className="font-mono text-[11px] text-slate-500 dark:text-slate-400 flex items-center gap-1">
+                      <Clock className="w-3.5 h-3.5 text-slate-400" />
+                      {period.startTime} - {period.endTime}
+                    </div>
+                  </div>
                 );
               }
 
-              // Academic / Planning Period Row
+              const block = getBlockForCell(activeMobileDay, period.periodNumber);
+              const officialClass = getOfficialClassForCell(activeMobileDay, period.periodNumber);
+
               return (
-                <tr
+                <div
                   key={period.periodNumber}
-                  className="hover:bg-slate-50/30 dark:hover:bg-slate-800/20 transition-colors"
+                  className="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:border-indigo-300 dark:hover:border-indigo-800 transition-colors"
                 >
-                  {/* Period Label & Time */}
-                  <td className="py-3 px-4 font-medium border-r border-slate-200 dark:border-slate-800 bg-slate-50/20 dark:bg-slate-900/20 whitespace-nowrap align-top">
-                    <div className="font-bold text-slate-900 dark:text-slate-100">
-                      {period.label}
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 flex flex-col items-center justify-center shrink-0">
+                      <span className="text-[10px] uppercase font-bold text-slate-400 leading-tight">Period</span>
+                      <span className="text-base font-black text-indigo-600 dark:text-indigo-400 leading-tight">
+                        {period.periodNumber}
+                      </span>
                     </div>
-                    <div className="text-[11px] text-slate-400 flex items-center gap-1 mt-0.5">
-                      <Clock className="w-3 h-3 text-slate-400" />
-                      {period.startTime} - {period.endTime}
+                    <div>
+                      <div className="font-bold text-sm text-slate-900 dark:text-slate-100">
+                        {period.label}
+                      </div>
+                      <div className="text-xs font-mono text-slate-400 flex items-center gap-1 mt-0.5">
+                        <Clock className="w-3 h-3 text-slate-400" />
+                        {period.startTime} - {period.endTime}
+                      </div>
                     </div>
-                  </td>
+                  </div>
 
-                  {/* Day Cells */}
-                  {DAYS_OF_WEEK.map((day) => {
-                    const block = getBlockForCell(day.key, period.periodNumber);
-                    const officialClass = getOfficialClassForCell(day.key, period.periodNumber);
-                    const isDragOver =
-                      dragOverCell?.day === day.key && dragOverCell?.periodNumber === period.periodNumber;
-
-                    return (
-                      <td
-                        key={`${day.key}-${period.periodNumber}`}
-                        onDragOver={(e) => handleDragOver(e, day.key, period.periodNumber)}
-                        onDragLeave={handleDragLeave}
-                        onDrop={(e) => handleDrop(e, day.key, period.periodNumber)}
-                        className={`p-2 border-r last:border-r-0 border-slate-200 dark:border-slate-800 align-top min-w-[155px] transition-colors relative ${
-                          isDragOver
-                            ? 'bg-indigo-50/80 dark:bg-indigo-950/50 ring-2 ring-indigo-500 ring-inset rounded-lg'
-                            : ''
-                        }`}
-                      >
-                        {block ? (
-                          <TeacherPersonalBlockCard
-                            block={block}
-                            onEdit={(b) =>
-                              setBlockModalState({
-                                isOpen: true,
-                                day: b.day,
-                                periodNumber: b.periodNumber,
-                                existingBlock: b,
-                              })
-                            }
-                            onDelete={handleDeleteBlock}
-                            onDragStart={handleDragStart}
-                            isDragging={draggedBlock?.id === block.id}
-                          />
-                        ) : (
-                          <div className="h-full min-h-[96px] rounded-xl border border-dashed border-slate-200 dark:border-slate-800 flex flex-col justify-between p-2 text-center group transition-all hover:border-indigo-300 dark:hover:border-indigo-700">
-                            {/* If an official class assignment exists in this period that isn't yet added */}
-                            {officialClass ? (
-                              <div className="text-left p-1 rounded-lg bg-indigo-50/60 dark:bg-indigo-950/30 border border-indigo-100 dark:border-indigo-900/50 space-y-1 mb-1">
-                                <div className="text-[10px] font-bold text-indigo-700 dark:text-indigo-300 truncate">
-                                  {officialClass.subjectName}
-                                </div>
-                                <div className="text-[9px] text-slate-500 dark:text-slate-400">
-                                  {officialClass.room}
-                                </div>
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    handleSaveBlock({
-                                      id: `tpb-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
-                                      schoolId: TENANT_SCHOOL_ID,
-                                      teacherId: activeTeacher.id,
-                                      teacherName: activeTeacher.name,
-                                      day: day.key,
-                                      periodNumber: period.periodNumber,
-                                      title: `${officialClass.subjectName} (Assigned Class)`,
-                                      activityType: 'CLASS_LESSON',
-                                      room: officialClass.room,
-                                      colorTheme: 'indigo',
-                                      importedFromClassTimetable: true,
-                                      originalClassSlotId: officialClass.id,
-                                      hasOfficialClassOverlap: false,
-                                      updatedAt: new Date().toISOString(),
-                                    });
-                                  }}
-                                  className="text-[9px] font-semibold text-indigo-600 hover:text-indigo-800 flex items-center gap-0.5 cursor-pointer pt-0.5"
-                                >
-                                  <Plus className="w-2.5 h-2.5" /> Add to Planner
-                                </button>
-                              </div>
-                            ) : (
-                              <div className="text-[11px] text-slate-300 dark:text-slate-600 font-medium italic my-auto">
-                                Free Block
-                              </div>
-                            )}
-
-                            {/* Add Block button */}
-                            <button
-                              type="button"
-                              onClick={() =>
-                                setBlockModalState({
-                                  isOpen: true,
-                                  day: day.key,
-                                  periodNumber: period.periodNumber,
-                                  existingBlock: null,
-                                })
-                              }
-                              className="w-full flex items-center justify-center gap-1 text-[10px] text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors py-1 cursor-pointer opacity-40 group-hover:opacity-100"
-                            >
-                              <Plus className="w-3.5 h-3.5" />
-                              <span>Plan Activity</span>
-                            </button>
+                  <div className="flex-1 max-w-xl">
+                    {block ? (
+                      <TeacherPersonalBlockCard
+                        block={block}
+                        onEdit={(b) =>
+                          setBlockModalState({
+                            isOpen: true,
+                            day: b.day,
+                            periodNumber: b.periodNumber,
+                            existingBlock: b,
+                          })
+                        }
+                        onDelete={handleDeleteBlock}
+                        onDragStart={handleDragStart}
+                        isDragging={draggedBlock?.id === block.id}
+                      />
+                    ) : (
+                      <div className="p-3 rounded-lg border border-dashed border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                        {officialClass ? (
+                          <div className="text-left space-y-0.5">
+                            <span className="text-xs font-bold text-indigo-600 dark:text-indigo-400">
+                              Official Teaching: {officialClass.subjectName}
+                            </span>
+                            <span className="text-[11px] text-slate-400 block">
+                              Room: {officialClass.room}
+                            </span>
                           </div>
+                        ) : (
+                          <span className="text-xs text-slate-400 italic">No activity scheduled</span>
                         )}
-                      </td>
-                    );
-                  })}
-                </tr>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() =>
+                            setBlockModalState({
+                              isOpen: true,
+                              day: activeMobileDay,
+                              periodNumber: period.periodNumber,
+                              existingBlock: null,
+                            })
+                          }
+                          leftIcon={<Plus className="w-3.5 h-3.5" />}
+                        >
+                          Plan Activity
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                </div>
               );
             })}
-          </tbody>
-        </table>
-      </div>
+          </div>
+        </div>
+      ) : (
+        /* VIEW 2: WEEKLY MATRIX TABLE */
+        <div className="space-y-1.5">
+          <div className="md:hidden flex items-center justify-between text-[11px] text-slate-400 px-1">
+            <span className="flex items-center gap-1">
+              <Smartphone className="w-3.5 h-3.5 text-indigo-500" />
+              <span>Scroll horizontally to view all weekdays, or switch to "Daily Agenda" view</span>
+            </span>
+          </div>
+
+          <div className="overflow-x-auto touch-scroll rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs">
+            <table className="w-full text-left border-collapse min-w-[850px]">
+              {/* Header Days of Week */}
+              <thead>
+                <tr className="border-b border-slate-200 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-900/80 text-xs font-bold text-slate-700 dark:text-slate-300">
+                  <th className="py-3 px-4 w-32 border-r border-slate-200 dark:border-slate-800 uppercase tracking-wider text-[11px] text-slate-500">
+                    Time / Period
+                  </th>
+                  {DAYS_OF_WEEK.map((day) => (
+                    <th
+                      key={day.key}
+                      className="py-3 px-3 text-center border-r last:border-r-0 border-slate-200 dark:border-slate-800"
+                    >
+                      <div className="font-bold text-slate-900 dark:text-slate-100">{day.label}</div>
+                      <div className="text-[10px] text-slate-400 font-normal">Personal Agenda</div>
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+
+              {/* Table Body (Time Periods) */}
+              <tbody className="divide-y divide-slate-200 dark:divide-slate-800 text-xs">
+                {TIME_SLOT_DEFINITIONS.map((period) => {
+                  // Break Row
+                  if (period.isBreak) {
+                    const isLunch = period.periodNumber === -2;
+                    return (
+                      <tr
+                        key={period.label}
+                        className="bg-slate-100/60 dark:bg-slate-800/40 text-slate-600 dark:text-slate-400"
+                      >
+                        <td className="py-2 px-4 font-semibold border-r border-slate-200 dark:border-slate-800 whitespace-nowrap">
+                          <div className="flex items-center gap-1.5">
+                            <Clock className="w-3.5 h-3.5 text-slate-400" />
+                            <span className="text-[11px]">
+                              {period.startTime} - {period.endTime}
+                            </span>
+                          </div>
+                        </td>
+                        <td
+                          colSpan={DAYS_OF_WEEK.length}
+                          className="py-2 px-4 text-center font-bold tracking-wide uppercase text-[11px] text-slate-500 dark:text-slate-400"
+                        >
+                          <div className="flex items-center justify-center gap-2">
+                            {isLunch ? (
+                              <Utensils className="w-4 h-4 text-amber-500" />
+                            ) : (
+                              <Coffee className="w-4 h-4 text-indigo-500" />
+                            )}
+                            <span>
+                              {period.label} ({period.startTime} - {period.endTime})
+                            </span>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  }
+
+                  // Academic / Planning Period Row
+                  return (
+                    <tr
+                      key={period.periodNumber}
+                      className="hover:bg-slate-50/30 dark:hover:bg-slate-800/20 transition-colors"
+                    >
+                      {/* Period Label & Time */}
+                      <td className="py-3 px-4 font-medium border-r border-slate-200 dark:border-slate-800 bg-slate-50/20 dark:bg-slate-900/20 whitespace-nowrap align-top">
+                        <div className="font-bold text-slate-900 dark:text-slate-100">
+                          {period.label}
+                        </div>
+                        <div className="text-[11px] text-slate-400 flex items-center gap-1 mt-0.5">
+                          <Clock className="w-3 h-3 text-slate-400" />
+                          {period.startTime} - {period.endTime}
+                        </div>
+                      </td>
+
+                      {/* Day Cells */}
+                      {DAYS_OF_WEEK.map((day) => {
+                        const block = getBlockForCell(day.key, period.periodNumber);
+                        const officialClass = getOfficialClassForCell(day.key, period.periodNumber);
+                        const isDragOver =
+                          dragOverCell?.day === day.key && dragOverCell?.periodNumber === period.periodNumber;
+
+                        return (
+                          <td
+                            key={`${day.key}-${period.periodNumber}`}
+                            onDragOver={(e) => handleDragOver(e, day.key, period.periodNumber)}
+                            onDragLeave={handleDragLeave}
+                            onDrop={(e) => handleDrop(e, day.key, period.periodNumber)}
+                            className={`p-2 border-r last:border-r-0 border-slate-200 dark:border-slate-800 align-top min-w-[155px] transition-colors relative ${
+                              isDragOver
+                                ? 'bg-indigo-50/80 dark:bg-indigo-950/50 ring-2 ring-indigo-500 ring-inset rounded-lg'
+                                : ''
+                            }`}
+                          >
+                            {block ? (
+                              <TeacherPersonalBlockCard
+                                block={block}
+                                onEdit={(b) =>
+                                  setBlockModalState({
+                                    isOpen: true,
+                                    day: b.day,
+                                    periodNumber: b.periodNumber,
+                                    existingBlock: b,
+                                  })
+                                }
+                                onDelete={handleDeleteBlock}
+                                onDragStart={handleDragStart}
+                                isDragging={draggedBlock?.id === block.id}
+                              />
+                            ) : (
+                              <div className="h-full min-h-[96px] rounded-xl border border-dashed border-slate-200 dark:border-slate-800 flex flex-col justify-between p-2 text-center group transition-all hover:border-indigo-300 dark:hover:border-indigo-700">
+                                {/* If an official class assignment exists in this period that isn't yet added */}
+                                {officialClass ? (
+                                  <div className="text-left p-1 rounded-lg bg-indigo-50/60 dark:bg-indigo-950/30 border border-indigo-100 dark:border-indigo-900/50 space-y-1 mb-1">
+                                    <div className="text-[10px] font-bold text-indigo-700 dark:text-indigo-300 truncate">
+                                      {officialClass.subjectName}
+                                    </div>
+                                    <div className="text-[9px] text-slate-500 dark:text-slate-400">
+                                      {officialClass.room}
+                                    </div>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        handleSaveBlock({
+                                          id: `tpb-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
+                                          schoolId: TENANT_SCHOOL_ID,
+                                          teacherId: activeTeacher.id,
+                                          teacherName: activeTeacher.name,
+                                          day: day.key,
+                                          periodNumber: period.periodNumber,
+                                          title: `${officialClass.subjectName} (Assigned Class)`,
+                                          activityType: 'CLASS_LESSON',
+                                          room: officialClass.room,
+                                          colorTheme: 'indigo',
+                                          importedFromClassTimetable: true,
+                                          originalClassSlotId: officialClass.id,
+                                          hasOfficialClassOverlap: false,
+                                          updatedAt: new Date().toISOString(),
+                                        });
+                                      }}
+                                      className="text-[9px] font-semibold text-indigo-600 hover:text-indigo-800 flex items-center gap-0.5 cursor-pointer pt-0.5"
+                                    >
+                                      <Plus className="w-2.5 h-2.5" /> Add to Planner
+                                    </button>
+                                  </div>
+                                ) : (
+                                  <div className="text-[11px] text-slate-300 dark:text-slate-600 font-medium italic my-auto">
+                                    Free Block
+                                  </div>
+                                )}
+
+                                {/* Add Block button */}
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    setBlockModalState({
+                                      isOpen: true,
+                                      day: day.key,
+                                      periodNumber: period.periodNumber,
+                                      existingBlock: null,
+                                    })
+                                  }
+                                  className="w-full flex items-center justify-center gap-1 text-[10px] text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors py-1 cursor-pointer opacity-40 group-hover:opacity-100"
+                                >
+                                  <Plus className="w-3.5 h-3.5" />
+                                  <span>Plan Activity</span>
+                                </button>
+                              </div>
+                            )}
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
       {/* Decoupled Invariant #2 Enforcement Note */}
       <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-slate-500 dark:text-slate-400">

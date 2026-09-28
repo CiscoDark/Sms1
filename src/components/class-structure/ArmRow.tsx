@@ -87,7 +87,7 @@ export const ArmRow: React.FC<ArmRowProps> = ({
       {/* Metrics & Occupancy Bar */}
       <div className="flex flex-wrap items-center gap-4 sm:gap-6 self-stretch lg:self-center">
         {/* Capacity bar */}
-        <div className="min-w-[130px] flex-1 sm:flex-initial space-y-1">
+        <div className="w-full sm:w-auto sm:min-w-[130px] flex-1 sm:flex-initial space-y-1">
           <div className="flex items-center justify-between text-xs">
             <span className="text-slate-500 dark:text-slate-400 flex items-center gap-1">
               <Users className="w-3 h-3" />
