@@ -4,6 +4,7 @@ import {
   Lock,
   User,
   ArrowRight,
+  ArrowLeft,
   Eye,
   EyeOff,
   AlertCircle,
@@ -12,6 +13,8 @@ import {
   GraduationCap,
   Sparkles,
   QrCode,
+  Globe,
+  Check,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { authenticateDemoUser, getPublicDemoAccounts } from '../../lib/auth-store';
@@ -21,11 +24,21 @@ import { Button } from '../../design-system/components/Button';
 interface LoginPageProps {
   onLoginSuccess: (user: UserProfile) => void;
   onOpenPublicVerification?: () => void;
+  onBackToLanding?: () => void;
+  defaultStartingScreen?: 'landing' | 'login';
+  onSetDefaultStartingScreen?: (screen: 'landing' | 'login') => void;
+  savedUser?: UserProfile | null;
+  onResumeSession?: () => void;
 }
 
 export const LoginPage: React.FC<LoginPageProps> = ({
   onLoginSuccess,
   onOpenPublicVerification,
+  onBackToLanding,
+  defaultStartingScreen = 'landing',
+  onSetDefaultStartingScreen,
+  savedUser,
+  onResumeSession,
 }) => {
   const [usernameOrEmail, setUsernameOrEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -64,12 +77,76 @@ export const LoginPage: React.FC<LoginPageProps> = ({
   };
 
   return (
-    <div className="min-h-screen flex flex-col justify-center items-center bg-[#F8FAFC] dark:bg-[#020617] text-slate-900 dark:text-slate-100 p-4 sm:p-6 lg:p-8 relative overflow-hidden">
+    <div className="min-h-screen w-full flex flex-col justify-start items-center bg-[#F8FAFC] dark:bg-[#020617] text-slate-900 dark:text-slate-100 py-6 sm:py-10 px-3 sm:px-6 lg:px-8 relative overflow-y-auto">
       {/* Ambient Glassmorphism Luminous Glow Backdrops */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden z-0" aria-hidden="true">
         <div className="absolute -top-[10%] -left-[10%] w-[55vw] h-[55vw] max-w-[650px] max-h-[650px] rounded-full bg-gradient-to-br from-indigo-500/20 via-sky-400/15 to-transparent dark:from-indigo-600/20 dark:via-purple-600/12 dark:to-transparent blur-3xl" />
         <div className="absolute top-[35%] -right-[15%] w-[50vw] h-[50vw] max-w-[600px] max-h-[600px] rounded-full bg-gradient-to-bl from-teal-400/18 via-emerald-300/12 to-transparent dark:from-emerald-600/15 dark:via-cyan-600/10 dark:to-transparent blur-3xl" />
         <div className="absolute -bottom-[15%] left-[20%] w-[55vw] h-[55vw] max-w-[650px] max-h-[650px] rounded-full bg-gradient-to-tr from-blue-500/16 via-indigo-400/12 to-transparent dark:from-indigo-900/22 dark:via-blue-900/12 dark:to-transparent blur-3xl" />
+      </div>
+
+      {/* Top Navigation & Starting Page Switcher Bar */}
+      <div className="w-full max-w-5xl mx-auto mb-6 flex flex-col sm:flex-row items-center justify-between gap-3 relative z-10">
+        {/* Segmented Starting Page Switcher */}
+        <div className="inline-flex items-center p-1 rounded-2xl bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border border-white/80 dark:border-white/10 shadow-sm">
+          {onBackToLanding && (
+            <button
+              type="button"
+              onClick={onBackToLanding}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-300 hover:bg-slate-100/60 dark:hover:bg-slate-800/60 active:scale-95 transition-all cursor-pointer"
+            >
+              <Globe className="w-3.5 h-3.5 text-indigo-500" />
+              <span>Landing Page</span>
+            </button>
+          )}
+
+          <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-indigo-600 text-white shadow-[0_2px_8px_rgba(99,102,241,0.35)]">
+            <Lock className="w-3.5 h-3.5 text-white" />
+            <span>Sign In Portal</span>
+          </div>
+        </div>
+
+        {/* Right side: Resume Session & Default Start Screen Preference */}
+        <div className="flex items-center gap-2.5 flex-wrap justify-center sm:justify-end">
+          {onSetDefaultStartingScreen && (
+            <button
+              type="button"
+              onClick={() =>
+                onSetDefaultStartingScreen(defaultStartingScreen === 'login' ? 'landing' : 'login')
+              }
+              className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-[11px] font-semibold border backdrop-blur-md transition-all cursor-pointer shadow-2xs active:scale-95 ${
+                defaultStartingScreen === 'login'
+                  ? 'bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border-indigo-300 dark:border-indigo-800'
+                  : 'bg-white/60 dark:bg-slate-800/60 text-slate-600 dark:text-slate-400 border-white/70 dark:border-slate-700/60 hover:text-slate-900 dark:hover:text-slate-200'
+              }`}
+              title="Toggle whether opening the site defaults to the Login Page or Landing Page"
+            >
+              <Check
+                className={`w-3 h-3 ${
+                  defaultStartingScreen === 'login' ? 'text-indigo-600 dark:text-indigo-400' : 'opacity-30'
+                }`}
+              />
+              <span>
+                Default Start:{' '}
+                <strong className="font-bold">
+                  {defaultStartingScreen === 'login' ? 'Login Page' : 'Landing Page'}
+                </strong>
+              </span>
+            </button>
+          )}
+
+          {savedUser && onResumeSession && (
+            <button
+              type="button"
+              onClick={onResumeSession}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30 text-xs font-bold hover:bg-emerald-500/25 active:scale-95 transition-all cursor-pointer shadow-2xs"
+            >
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+              <span>Resume Session ({savedUser.name.split(' ')[0]})</span>
+              <ArrowRight className="w-3.5 h-3.5" />
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="w-full max-w-5xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-8 items-center relative z-10">
@@ -247,19 +324,19 @@ export const LoginPage: React.FC<LoginPageProps> = ({
             </form>
           </div>
 
-          {/* Demo Credentials Helper Panel (Lists only non-Super-Admin accounts) */}
+          {/* Demo Roles Helper Panel */}
           <div className="bg-white/60 dark:bg-slate-900/60 backdrop-blur-xl rounded-3xl border border-white/75 dark:border-white/10 p-5 space-y-3 shadow-[0_8px_30px_rgb(0,0,0,0.03)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.25)]">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <KeyRound className="w-4 h-4 text-indigo-500" />
                 <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
-                  Demo Test Credentials (Click to fill)
+                  Demo Roles
                 </h3>
               </div>
-              <span className="text-[11px] text-slate-400">Click any role to autofill</span>
+              <span className="text-[11px] text-slate-400">Tap a role to autofill</span>
             </div>
 
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+            <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-3 gap-2.5">
               {publicAccounts.map((acc) => {
                 const roleLabel = acc.user.role.replace('_', ' ');
                 return (
@@ -277,9 +354,6 @@ export const LoginPage: React.FC<LoginPageProps> = ({
                     </div>
                     <div className="text-[10px] font-mono text-slate-500 dark:text-slate-400 truncate mt-0.5">
                       user: <strong className="text-slate-700 dark:text-slate-300">{acc.username}</strong>
-                    </div>
-                    <div className="text-[10px] font-mono text-slate-400 dark:text-slate-500 truncate">
-                      pass: {acc.username}
                     </div>
                   </button>
                 );

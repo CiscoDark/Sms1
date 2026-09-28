@@ -294,6 +294,28 @@ export function clearAuthUser(): void {
   }
 }
 
+const START_PAGE_STORAGE_KEY = 'sms_default_start_page';
+
+export function getStoredStartPage(): 'landing' | 'login' {
+  try {
+    const val = localStorage.getItem(START_PAGE_STORAGE_KEY);
+    if (val === 'login' || val === 'landing') {
+      return val;
+    }
+  } catch {
+    // Ignore storage error
+  }
+  return 'landing';
+}
+
+export function setStoredStartPage(page: 'landing' | 'login'): void {
+  try {
+    localStorage.setItem(START_PAGE_STORAGE_KEY, page);
+  } catch (e) {
+    console.error('Failed to set start page', e);
+  }
+}
+
 /**
  * Returns default landing tab for a given role.
  */
@@ -325,10 +347,23 @@ export function getDefaultTabForRole(role: Role): TabId {
  */
 export function getAllowedTabsForRole(role: Role): TabId[] {
   const account = DEMO_ACCOUNTS.find((acc) => acc.user.role === role);
+
   if (account) {
+    // Keep developer and operational tooling out of normal demo personas.
+    // These areas remain available only to the private Super Admin account.
+    if (role !== 'SUPER_ADMIN') {
+      return account.allowedTabs.filter(
+        (tab) =>
+          tab !== 'backup' &&
+          tab !== 'data-migration' &&
+          tab !== 'design-system'
+      );
+    }
+
     return account.allowedTabs;
   }
-  // Fallback safe default (NO design-system)
+
+  // Fallback safe default: never expose developer/operational tooling.
   return ['dashboard', 'students', 'messages'];
 }
 

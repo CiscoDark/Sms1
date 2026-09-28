@@ -29,6 +29,7 @@ import {
   AlertTriangle,
   ChevronLeft,
   ChevronRight,
+  Globe,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
@@ -88,6 +89,8 @@ import {
   getStoredAuthUser,
   storeAuthUser,
   clearAuthUser,
+  getStoredStartPage,
+  setStoredStartPage,
 } from './lib/auth-store';
 import { getReportCardByCredentialUuid, getAllPublishedReportCards } from './lib/report-card-store';
 import {
@@ -101,9 +104,7 @@ import {
   enqueueOfflineAction,
 } from './lib/offline-queue';
 import { getEnrichedStudents } from './lib/students/students-store';
-import { useFormFactor } from './lib/form-factor-store';
-import { SideDuoBar } from './components/navigation/SideDuoBar';
-import { FormFactorSwitcher } from './components/navigation/FormFactorSwitcher';
+import { LandingPage } from './components/landing/LandingPage';
 
 type Tab =
   | 'dashboard'
@@ -146,13 +147,28 @@ export default function App() {
     }
   });
 
+  // User authentication session state:
+  // Starts on unauthenticated entry page (Landing or Login) unless explicitly navigating to #/app
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(() => {
-    return getStoredAuthUser();
+    const hash = typeof window !== 'undefined' ? window.location.hash : '';
+    if (hash.startsWith('#/app') || hash.startsWith('#app')) {
+      return getStoredAuthUser();
+    }
+    // Default starting page: unauthenticated
+    return null;
   });
 
-  // Responsive Form Factor and Navigation Layout State (PC, Mobile, Tablet, Foldable, Foldable 4:3 Duo Style)
-  const formFactor = useFormFactor();
-  const [simulateDeviceFrame, setSimulateDeviceFrame] = useState(false);
+  // Default starting page preference: 'landing' or 'login' (persisted in localStorage)
+  const [defaultStartScreen, setDefaultStartScreen] = useState<'landing' | 'login'>(() => {
+    return getStoredStartPage();
+  });
+
+  const handleUpdateDefaultStartScreen = (screen: 'landing' | 'login') => {
+    setDefaultStartScreen(screen);
+    setStoredStartPage(screen);
+    setAuthView(screen);
+    window.location.hash = screen === 'login' ? '#/login' : '#/landing';
+  };
 
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const [whatsNewOpen, setWhatsNewOpen] = useState(false);
@@ -182,6 +198,20 @@ export default function App() {
   });
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [publicVerifyStudent, setPublicVerifyStudent] = useState<Student | null>(null);
+
+  // Unauthenticated view state: 'landing' (public marketing showcase) or 'login' (sign in form)
+  const [authView, setAuthView] = useState<'landing' | 'login'>(() => {
+    const hash = typeof window !== 'undefined' ? window.location.hash : '';
+    if (hash === '#/login' || hash.startsWith('#/login') || hash === '#login') {
+      return 'login';
+    }
+    if (hash === '#/landing' || hash.startsWith('#/landing') || hash === '#landing') {
+      return 'landing';
+    }
+    // Use stored start page preference (defaults to 'landing', can be 'login')
+    return getStoredStartPage();
+  });
+
   const [publicVerificationUuid, setPublicVerificationUuid] = useState<string | null>(() => {
     const hash = window.location.hash;
     if (hash.includes('/verify-credential/')) {
@@ -191,7 +221,7 @@ export default function App() {
     return null;
   });
 
-  // Check URL for public credential verification hash or query parameter
+  // Check URL for public credential verification hash, login hash, landing hash, or app hash
   useEffect(() => {
     const checkVerificationRoute = () => {
       const hash = window.location.hash;
@@ -206,6 +236,28 @@ export default function App() {
         setPublicVerificationUuid(uuid);
       } else {
         setPublicVerificationUuid(null);
+        if (hash === '#/login' || hash.startsWith('#/login') || hash === '#login') {
+          setAuthView('login');
+          setCurrentUser(null);
+        } else if (hash === '#/landing' || hash.startsWith('#/landing') || hash === '#landing') {
+          setAuthView('landing');
+          setCurrentUser(null);
+        } else if (hash.startsWith('#/app') || hash.startsWith('#app')) {
+          const stored = getStoredAuthUser();
+          if (stored) {
+            setCurrentUser(stored);
+          } else {
+            const startPref = getStoredStartPage();
+            setAuthView(startPref);
+            setCurrentUser(null);
+            window.location.hash = startPref === 'login' ? '#/login' : '#/landing';
+          }
+        } else if (hash === '' || hash === '#' || hash === '#/') {
+          // Starting at root URL: always open the configured start page (Landing or Login)
+          const startPref = getStoredStartPage();
+          setAuthView(startPref);
+          setCurrentUser(null);
+        }
       }
     };
 
@@ -279,6 +331,9 @@ export default function App() {
     setCommandPaletteOpen(false);
     setWhatsNewOpen(false);
     setDemoModalOpen(false);
+    const startPref = getStoredStartPage();
+    setAuthView(startPref);
+    window.location.hash = startPref === 'login' ? '#/login' : '#/landing';
   };
 
   // Keyboard shortcuts (Ctrl/Cmd + K, Ctrl/Cmd + H, Ctrl/Cmd + Shift + L)
@@ -508,99 +563,85 @@ export default function App() {
     );
   }
 
-  // Authentication Gate: if user is not logged in, render LoginPage as first screen
+  // Authentication & Marketing Gate: if user is not in an active app session
   if (!currentUser) {
+    const savedSessionUser = getStoredAuthUser();
+    const handleResumeSession = () => {
+      if (savedSessionUser) {
+        setCurrentUser(savedSessionUser);
+        const defaultTab = getDefaultTabForRole(savedSessionUser.role);
+        setActiveTab(defaultTab as Tab);
+        window.location.hash = '#/app';
+      }
+    };
+
+    if (authView === 'login') {
+      return (
+        <ErrorBoundary>
+          <ThemeProvider>
+            <LoginPage
+              onLoginSuccess={(user) => {
+                storeAuthUser(user);
+                setCurrentUser(user);
+                const defaultTab = getDefaultTabForRole(user.role);
+                setActiveTab(defaultTab as Tab);
+                window.location.hash = '#/app';
+              }}
+              onOpenPublicVerification={() => {
+                window.location.hash = '/verify-credential/cred-sample-jss1-001';
+              }}
+              onBackToLanding={() => {
+                setAuthView('landing');
+                window.location.hash = '#/landing';
+              }}
+              defaultStartingScreen={defaultStartScreen}
+              onSetDefaultStartingScreen={handleUpdateDefaultStartScreen}
+              savedUser={savedSessionUser}
+              onResumeSession={savedSessionUser ? handleResumeSession : undefined}
+            />
+          </ThemeProvider>
+        </ErrorBoundary>
+      );
+    }
+
+    // Default unauthenticated view: Rich Glassmorphic Landing Page
     return (
       <ErrorBoundary>
         <ThemeProvider>
-          <LoginPage
-            onLoginSuccess={(user) => {
+          <LandingPage
+            onEnterLogin={() => {
+              setAuthView('login');
+              window.location.hash = '#/login';
+            }}
+            onDirectLoginAs={(user) => {
               storeAuthUser(user);
               setCurrentUser(user);
               const defaultTab = getDefaultTabForRole(user.role);
               setActiveTab(defaultTab as Tab);
+              window.location.hash = '#/app';
             }}
-            onOpenPublicVerification={() => {
-              window.location.hash = '/verify-credential/cred-sample-jss1-001';
+            onOpenPublicVerification={(uuid) => {
+              const targetUuid = uuid || 'cred-sample-jss1-001';
+              window.location.hash = `/verify-credential/${targetUuid}`;
+              setPublicVerificationUuid(targetUuid);
             }}
+            defaultStartingScreen={defaultStartScreen}
+            onSetDefaultStartingScreen={handleUpdateDefaultStartScreen}
+            savedUser={savedSessionUser}
+            onResumeSession={savedSessionUser ? handleResumeSession : undefined}
           />
         </ThemeProvider>
       </ErrorBoundary>
     );
   }
 
-  // Optional Device Bezel Wrapper for Interactive Testing in Web Browsers
-  const DeviceFrameWrapper: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-    if (!simulateDeviceFrame) return <>{children}</>;
-    return (
-      <div className="min-h-screen bg-slate-900/95 dark:bg-black p-2 sm:p-5 flex flex-col items-center justify-start overflow-y-auto">
-        <div className="w-full max-w-5xl mb-2.5 px-4 py-2 bg-slate-900/80 dark:bg-slate-950/80 backdrop-blur-xl text-white rounded-2xl border border-white/10 flex flex-wrap items-center justify-between gap-2 text-xs shadow-[0_12px_32px_rgba(0,0,0,0.35)]">
-          <div className="flex items-center gap-2">
-            <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
-            <span className="font-bold">Form Factor Simulation: {formFactor.effective.toUpperCase()}</span>
-            <span className="text-slate-400 font-mono text-[11px]">
-              ({formFactor.aspectRatio.toFixed(2)}:1 aspect ratio)
-            </span>
-            {formFactor.effectiveNavLayout === 'side' && (
-              <span className="px-1.5 py-0.2 rounded bg-indigo-500/30 text-indigo-300 font-semibold text-[10px]">
-                iPhone Duo Side Bar
-              </span>
-            )}
-          </div>
-          <div className="flex items-center gap-2">
-            <FormFactorSwitcher
-              currentMode={formFactor.mode}
-              detectedType={formFactor.detected}
-              effectiveType={formFactor.effective}
-              aspectRatio={formFactor.aspectRatio}
-              width={formFactor.width}
-              height={formFactor.height}
-              navLayoutPreference={formFactor.navLayoutPreference}
-              effectiveNavLayout={formFactor.effectiveNavLayout}
-              onSelectMode={formFactor.setMode}
-              onSelectNavLayout={formFactor.setNavLayoutPreference}
-              simulateDeviceFrame={simulateDeviceFrame}
-              onToggleDeviceFrame={setSimulateDeviceFrame}
-            />
-            <button
-              type="button"
-              onClick={() => setSimulateDeviceFrame(false)}
-              className="px-2.5 py-1 text-xs font-bold rounded-lg bg-rose-600 hover:bg-rose-500 text-white active:scale-95 transition-all cursor-pointer"
-            >
-              Exit Frame
-            </button>
-          </div>
-        </div>
-
-        <div
-          className={`w-full ${
-            formFactor.effective === 'foldable-4-3'
-              ? 'max-w-[1040px] aspect-[4/3] max-h-[86vh]'
-              : formFactor.effective === 'mobile'
-              ? 'max-w-[390px] h-[820px] max-h-[90vh]'
-              : formFactor.effective === 'tablet'
-              ? 'max-w-[820px] h-[820px] max-h-[90vh]'
-              : formFactor.effective === 'foldable'
-              ? 'max-w-[960px] h-[780px] max-h-[90vh]'
-              : 'max-w-7xl h-[88vh]'
-          } rounded-3xl border-8 border-slate-800 dark:border-slate-700 shadow-2xl overflow-y-auto overflow-x-hidden bg-slate-50 dark:bg-slate-950 flex flex-col relative`}
-        >
-          {children}
-        </div>
-      </div>
-    );
-  };
-
   return (
     <ErrorBoundary>
       <ThemeProvider>
-        <DeviceFrameWrapper>
-          <div
+        <div
           onTouchStart={handleTouchStart}
           onTouchEnd={handleTouchEnd}
-          className={`min-h-screen ${
-            formFactor.effectiveNavLayout === 'side' ? 'flex flex-row' : 'flex flex-col'
-          } bg-[#F8FAFC] dark:bg-[#020617] text-slate-900 dark:text-slate-100 font-sans antialiased transition-colors relative overflow-x-hidden w-full max-w-full`}
+          className="min-h-screen flex flex-col bg-[#F8FAFC] dark:bg-[#020617] text-slate-900 dark:text-slate-100 font-sans antialiased transition-colors relative overflow-x-hidden w-full max-w-full"
         >
           {/* Ambient Glassmorphism Luminous Glow Backdrops */}
           <div className="fixed inset-0 pointer-events-none overflow-hidden z-0" aria-hidden="true">
@@ -612,142 +653,9 @@ export default function App() {
           {/* Offline Sync Banner */}
           <ServiceWorkerRegister currentUser={currentUser} onLogAudit={handleLogAudit} />
 
-          {/* 1. LEFT SIDE DUO COMMAND RAIL (When Side Duo Bar layout is active) */}
-          {formFactor.effectiveNavLayout === 'side' && (
-            <SideDuoBar
-              currentUser={currentUser}
-              activeTab={activeTab}
-              allowedTabs={allowedTabs}
-              onSelectTab={(tab) => {
-                setActiveTab(tab);
-                setMobileMenuOpen(false);
-              }}
-              currentSession={currentSession}
-              activeTerm={activeTerm}
-              isCollapsed={formFactor.isSidebarCollapsed}
-              onToggleCollapse={formFactor.toggleSidebar}
-              onOpenSearch={() => setCommandPaletteOpen(true)}
-              onOpenCommandPalette={() => setCommandPaletteOpen(true)}
-              onOpenWhatsNew={() => setWhatsNewOpen(true)}
-              onOpenDemoModal={() => setDemoModalOpen(true)}
-              onOpenOfflineDrawer={() => setOfflineDrawerOpen(true)}
-              isOnline={isOnline}
-              offlineQueue={offlineQueue}
-              activeConflicts={activeConflicts}
-              isSyncing={isSyncing}
-              onRoleSwitch={(role) => {
-                setCurrentUser((prev) => (prev ? { ...prev, role } : null));
-                handleLogAudit('ROLE_SWITCH', `Switched active role to ${role}`);
-                const defTab = getDefaultTabForRole(role);
-                setActiveTab(defTab as Tab);
-              }}
-              onUserSwitch={(u) => {
-                setCurrentUser(u);
-                handleLogAudit('ROLE_SWITCH', `Switched active user to ${u.name} (${u.role})`);
-                const defTab = getDefaultTabForRole(u.role);
-                setActiveTab(defTab as Tab);
-              }}
-              onLogout={handleLogout}
-              formFactorMode={formFactor.mode}
-              detectedFormFactor={formFactor.detected}
-              effectiveFormFactor={formFactor.effective}
-              aspectRatio={formFactor.aspectRatio}
-              width={formFactor.width}
-              height={formFactor.height}
-              navLayoutPreference={formFactor.navLayoutPreference}
-              effectiveNavLayout={formFactor.effectiveNavLayout}
-              onSelectFormFactorMode={formFactor.setMode}
-              onSelectNavLayout={formFactor.setNavLayoutPreference}
-              simulateDeviceFrame={simulateDeviceFrame}
-              onToggleDeviceFrame={setSimulateDeviceFrame}
-            />
-          )}
-
-          {/* 2. MAIN APPLICATION CONTENT WRAPPER */}
-          <div className="flex-1 flex flex-col min-w-0 min-h-screen relative overflow-x-hidden">
-            {formFactor.effectiveNavLayout === 'side' ? (
-              /* Duo Mode Compact Top Command Bar */
-              <header className="sticky top-0 z-30 bg-white/75 dark:bg-slate-900/75 backdrop-blur-xl border-b border-white/60 dark:border-white/10 px-3 sm:px-6 h-14 flex items-center justify-between gap-2.5 sm:gap-4 shadow-[0_4px_24px_rgba(15,23,42,0.03)]">
-                <div className="flex items-center gap-2.5 min-w-0">
-                  <button
-                    type="button"
-                    onClick={() => setMobileMenuOpen(true)}
-                    className="md:hidden p-2 rounded-xl text-slate-500 hover:bg-white/60 dark:hover:bg-slate-800/60 active:bg-slate-200/50 dark:active:bg-slate-700/50 active:scale-95 transition-all cursor-pointer shrink-0"
-                    aria-label="Toggle Navigation Menu"
-                  >
-                    <Menu className="w-4 h-4" />
-                  </button>
-
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-2">
-                      <h1 className="font-extrabold text-sm sm:text-base text-slate-900 dark:text-slate-100 tracking-tight truncate">
-                        {TAB_LABELS[activeTab] || activeTab}
-                      </h1>
-                      {formFactor.effective === 'foldable-4-3' ? (
-                        <span className="hidden xs:inline-block text-[9px] font-bold px-1.5 py-0.2 rounded-full bg-indigo-100/80 dark:bg-indigo-950/80 text-indigo-700 dark:text-indigo-300 border border-indigo-200/60 dark:border-indigo-800/60 backdrop-blur-xs">
-                          4:3 Duo
-                        </span>
-                      ) : formFactor.effective === 'foldable' ? (
-                        <span className="hidden xs:inline-block text-[9px] font-bold px-1.5 py-0.2 rounded-full bg-purple-100/80 dark:bg-purple-950/80 text-purple-700 dark:text-purple-300 border border-purple-200/60 dark:border-purple-800/60 backdrop-blur-xs">
-                          Dual Pane
-                        </span>
-                      ) : (
-                        <span className="hidden sm:inline-block text-[9px] font-semibold px-1.5 py-0.2 rounded bg-white/60 dark:bg-slate-800/60 text-slate-600 dark:text-slate-400 border border-white/70 dark:border-slate-700/60 backdrop-blur-xs">
-                          Duo Rail
-                        </span>
-                      )}
-                    </div>
-                    <p className="text-[10px] text-slate-500 dark:text-slate-400 font-medium truncate hidden sm:block">
-                      {TAB_SUBTITLES[activeTab] || 'Apex Horizon Academy'}
-                    </p>
-                  </div>
-                </div>
-
-                {/* Center Active Academic Session Indicator */}
-                {allowedTabs.includes('sessions') && (
-                  <div
-                    onClick={() => setActiveTab('sessions')}
-                    className="hidden xl:flex items-center gap-2 px-2.5 py-1 rounded-full bg-white/60 dark:bg-slate-800/60 backdrop-blur-md border border-white/70 dark:border-slate-700/60 text-xs font-semibold cursor-pointer hover:bg-white/85 dark:hover:bg-slate-700/70 active:bg-slate-200/50 dark:active:bg-slate-700/50 active:scale-95 transition-all shrink-0 shadow-2xs"
-                    title="Active Academic Session"
-                  >
-                    <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse shrink-0" />
-                    <span className="text-slate-800 dark:text-slate-200">{currentSession.year}</span>
-                    <span className="text-slate-300 dark:text-slate-600">•</span>
-                    <span className="text-indigo-600 dark:text-indigo-400">{activeTerm?.name || 'Active Term'}</span>
-                  </div>
-                )}
-
-                {/* Right Controls */}
-                <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-                  <div className="hidden lg:block w-48 xl:w-60">
-                    <GlobalSearchBar
-                      students={students}
-                      onSelectStudent={(st) => setPublicVerifyStudent(st)}
-                    />
-                  </div>
-
-                  <FormFactorSwitcher
-                    currentMode={formFactor.mode}
-                    detectedType={formFactor.detected}
-                    effectiveType={formFactor.effective}
-                    aspectRatio={formFactor.aspectRatio}
-                    width={formFactor.width}
-                    height={formFactor.height}
-                    navLayoutPreference={formFactor.navLayoutPreference}
-                    effectiveNavLayout={formFactor.effectiveNavLayout}
-                    onSelectMode={formFactor.setMode}
-                    onSelectNavLayout={formFactor.setNavLayoutPreference}
-                    simulateDeviceFrame={simulateDeviceFrame}
-                    onToggleDeviceFrame={setSimulateDeviceFrame}
-                  />
-
-                  <ThemeToggle className="w-8 h-8 rounded-xl bg-white/60 dark:bg-slate-800/60 backdrop-blur-md border border-white/70 dark:border-slate-700/60 shadow-2xs" />
-                </div>
-              </header>
-            ) : (
-              /* Main Top Header */
-              <header className="sticky top-0 z-30 bg-white/78 dark:bg-slate-900/75 backdrop-blur-xl border-b border-white/60 dark:border-white/10 shadow-[0_4px_24px_rgba(15,23,42,0.03)]">
-                <div className="max-w-7xl mx-auto px-2.5 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-1.5 sm:gap-4 w-full">
+          {/* Main Top Header (Fully Responsive for Web PC and Mobile) */}
+          <header className="sticky top-0 z-30 bg-white/78 dark:bg-slate-900/75 backdrop-blur-xl border-b border-white/60 dark:border-white/10 shadow-[0_4px_24px_rgba(15,23,42,0.03)]">
+            <div className="max-w-7xl mx-auto px-2.5 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-1.5 sm:gap-4 w-full">
               {/* Left Brand */}
               <div className="flex items-center gap-2 sm:gap-3 min-w-0">
                 <button
@@ -806,23 +714,22 @@ export default function App() {
                 />
               </div>
 
-              {/* Right Controls: Form Factor Switcher, Command Palette, Demo Badge, What's New, Notifications, Role Switcher, Theme, Sign Out */}
+              {/* Right Controls: Landing Page, Command Palette, Demo Badge, What's New, Notifications, Role Switcher, Theme, Sign Out */}
               <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-                {/* Form Factor & Layout Switcher */}
-                <FormFactorSwitcher
-                  currentMode={formFactor.mode}
-                  detectedType={formFactor.detected}
-                  effectiveType={formFactor.effective}
-                  aspectRatio={formFactor.aspectRatio}
-                  width={formFactor.width}
-                  height={formFactor.height}
-                  navLayoutPreference={formFactor.navLayoutPreference}
-                  effectiveNavLayout={formFactor.effectiveNavLayout}
-                  onSelectMode={formFactor.setMode}
-                  onSelectNavLayout={formFactor.setNavLayoutPreference}
-                  simulateDeviceFrame={simulateDeviceFrame}
-                  onToggleDeviceFrame={setSimulateDeviceFrame}
-                />
+                {/* Landing Page Link */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAuthView('landing');
+                    setCurrentUser(null);
+                    window.location.hash = '#/landing';
+                  }}
+                  className="hidden md:flex items-center gap-1.5 px-2.5 py-1.5 text-xs text-indigo-700 dark:text-indigo-300 hover:text-indigo-900 dark:hover:text-white bg-indigo-50/70 dark:bg-indigo-950/50 backdrop-blur-md border border-indigo-200/70 dark:border-indigo-800/70 rounded-xl shadow-2xs hover:bg-indigo-100/70 dark:hover:bg-indigo-900/50 transition-all cursor-pointer"
+                  title="View Public Landing Page"
+                >
+                  <Globe className="w-3.5 h-3.5 text-indigo-500" />
+                  <span className="hidden xl:inline text-[11px] font-semibold">Landing Page</span>
+                </button>
 
                 {/* Command Palette Button */}
                 <button
@@ -953,7 +860,6 @@ export default function App() {
               </div>
             </div>
           </header>
-        )}
 
             {/* Mobile Navigation Drawer with Swipe-to-Dismiss */}
             <AnimatePresence>
@@ -1327,24 +1233,6 @@ export default function App() {
                         <ThemeToggle className="w-8 h-8 rounded-lg bg-white/60 dark:bg-slate-800/60 backdrop-blur-md border border-white/70 dark:border-slate-700/60 shadow-2xs" />
                       </div>
 
-                      <div className="flex items-center justify-between px-3 py-2 rounded-xl bg-white/70 dark:bg-slate-800/70 backdrop-blur-sm border border-white/70 dark:border-slate-700/60 shadow-2xs">
-                        <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">Form Factor & Layout</span>
-                        <FormFactorSwitcher
-                          currentMode={formFactor.mode}
-                          detectedType={formFactor.detected}
-                          effectiveType={formFactor.effective}
-                          aspectRatio={formFactor.aspectRatio}
-                          width={formFactor.width}
-                          height={formFactor.height}
-                          navLayoutPreference={formFactor.navLayoutPreference}
-                          effectiveNavLayout={formFactor.effectiveNavLayout}
-                          onSelectMode={formFactor.setMode}
-                          onSelectNavLayout={formFactor.setNavLayoutPreference}
-                          simulateDeviceFrame={simulateDeviceFrame}
-                          onToggleDeviceFrame={setSimulateDeviceFrame}
-                        />
-                      </div>
-
                       <div className="flex items-center gap-2">
                         <button
                           type="button"
@@ -1373,6 +1261,20 @@ export default function App() {
                           <span>Sync ({offlineQueue.length})</span>
                         </button>
                       </div>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setMobileMenuOpen(false);
+                          setAuthView('landing');
+                          setCurrentUser(null);
+                          window.location.hash = '#/landing';
+                        }}
+                        className="w-full flex items-center justify-center gap-2 py-2 px-3 text-xs font-semibold text-indigo-700 dark:text-indigo-300 bg-indigo-50/80 dark:bg-indigo-950/60 rounded-xl border border-indigo-200/80 dark:border-indigo-800/80 backdrop-blur-xs transition-all cursor-pointer shadow-2xs"
+                      >
+                        <Globe className="w-3.5 h-3.5" />
+                        <span>Public Landing Page</span>
+                      </button>
 
                       <button
                         type="button"
@@ -1472,9 +1374,8 @@ export default function App() {
             )}
           </AnimatePresence>
 
-          {/* Sub Navigation Bar for Desktop (Rendered only in Classic Top Bar layout) */}
-          {formFactor.effectiveNavLayout === 'top' && (
-            <nav className="hidden md:block bg-white/70 dark:bg-slate-900/65 backdrop-blur-xl border-b border-white/60 dark:border-white/10 shadow-[0_4px_20px_rgba(0,0,0,0.02)]">
+          {/* Sub Navigation Bar for Desktop PC */}
+          <nav className="hidden md:block bg-white/70 dark:bg-slate-900/65 backdrop-blur-xl border-b border-white/60 dark:border-white/10 shadow-[0_4px_20px_rgba(0,0,0,0.02)]">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center gap-4 h-12 text-sm overflow-x-auto no-scrollbar whitespace-nowrap">
               {allowedTabs.includes('dashboard') && (
                 <button
@@ -1815,10 +1716,9 @@ export default function App() {
               )}
             </div>
           </nav>
-        )}
 
           {/* Main Content Area */}
-          <main className="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 w-full">
+          <main className="flex-1 max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-5 sm:py-8 pb-28 md:pb-8 w-full">
             {activeTab === 'dashboard' && (
               <DashboardPage
                 currentSession={currentSession}
@@ -2108,9 +2008,131 @@ export default function App() {
               </div>
             </div>
           </footer>
+
+          {/* Mobile Fixed Glassmorphism Bottom Navigation Dock */}
+          <div className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/85 dark:bg-slate-900/85 backdrop-blur-2xl border-t border-white/70 dark:border-white/10 px-2 py-1 flex items-center justify-around shadow-[0_-8px_30px_rgba(0,0,0,0.08)]">
+            {allowedTabs.includes('dashboard') && (
+              <button
+                type="button"
+                onClick={() => setActiveTab('dashboard')}
+                className={`flex flex-col items-center justify-center py-1 px-2.5 rounded-xl transition-all cursor-pointer ${
+                  activeTab === 'dashboard'
+                    ? 'text-indigo-600 dark:text-indigo-400 font-bold scale-105'
+                    : 'text-slate-500 dark:text-slate-400'
+                }`}
+              >
+                <LayoutDashboard className="w-5 h-5" />
+                <span className="text-[10px] mt-0.5 leading-none">Dashboard</span>
+              </button>
+            )}
+
+            {allowedTabs.includes('students') ? (
+              <button
+                type="button"
+                onClick={() => setActiveTab('students')}
+                className={`flex flex-col items-center justify-center py-1 px-2.5 rounded-xl transition-all cursor-pointer ${
+                  activeTab === 'students'
+                    ? 'text-indigo-600 dark:text-indigo-400 font-bold scale-105'
+                    : 'text-slate-500 dark:text-slate-400'
+                }`}
+              >
+                <Users className="w-5 h-5" />
+                <span className="text-[10px] mt-0.5 leading-none">Students</span>
+              </button>
+            ) : allowedTabs.includes('gradebook') ? (
+              <button
+                type="button"
+                onClick={() => setActiveTab('gradebook')}
+                className={`flex flex-col items-center justify-center py-1 px-2.5 rounded-xl transition-all cursor-pointer ${
+                  activeTab === 'gradebook'
+                    ? 'text-indigo-600 dark:text-indigo-400 font-bold scale-105'
+                    : 'text-slate-500 dark:text-slate-400'
+                }`}
+              >
+                <GraduationCap className="w-5 h-5" />
+                <span className="text-[10px] mt-0.5 leading-none">Gradebook</span>
+              </button>
+            ) : allowedTabs.includes('parent-portal') ? (
+              <button
+                type="button"
+                onClick={() => setActiveTab('parent-portal')}
+                className={`flex flex-col items-center justify-center py-1 px-2.5 rounded-xl transition-all cursor-pointer ${
+                  activeTab === 'parent-portal'
+                    ? 'text-rose-600 dark:text-rose-400 font-bold scale-105'
+                    : 'text-slate-500 dark:text-slate-400'
+                }`}
+              >
+                <Users className="w-5 h-5" />
+                <span className="text-[10px] mt-0.5 leading-none">Children</span>
+              </button>
+            ) : null}
+
+            {allowedTabs.includes('timetables') ? (
+              <button
+                type="button"
+                onClick={() => setActiveTab('timetables')}
+                className={`flex flex-col items-center justify-center py-1 px-2.5 rounded-xl transition-all cursor-pointer ${
+                  activeTab === 'timetables'
+                    ? 'text-indigo-600 dark:text-indigo-400 font-bold scale-105'
+                    : 'text-slate-500 dark:text-slate-400'
+                }`}
+              >
+                <Calendar className="w-5 h-5" />
+                <span className="text-[10px] mt-0.5 leading-none">Timetable</span>
+              </button>
+            ) : allowedTabs.includes('teacher-timetable') ? (
+              <button
+                type="button"
+                onClick={() => setActiveTab('teacher-timetable')}
+                className={`flex flex-col items-center justify-center py-1 px-2.5 rounded-xl transition-all cursor-pointer ${
+                  activeTab === 'teacher-timetable'
+                    ? 'text-emerald-600 dark:text-emerald-400 font-bold scale-105'
+                    : 'text-slate-500 dark:text-slate-400'
+                }`}
+              >
+                <Clock className="w-5 h-5" />
+                <span className="text-[10px] mt-0.5 leading-none">My Plan</span>
+              </button>
+            ) : allowedTabs.includes('fees') ? (
+              <button
+                type="button"
+                onClick={() => setActiveTab('fees')}
+                className={`flex flex-col items-center justify-center py-1 px-2.5 rounded-xl transition-all cursor-pointer ${
+                  activeTab === 'fees'
+                    ? 'text-emerald-600 dark:text-emerald-400 font-bold scale-105'
+                    : 'text-slate-500 dark:text-slate-400'
+                }`}
+              >
+                <CreditCard className="w-5 h-5" />
+                <span className="text-[10px] mt-0.5 leading-none">Fees</span>
+              </button>
+            ) : null}
+
+            {allowedTabs.includes('messages') && (
+              <button
+                type="button"
+                onClick={() => setActiveTab('messages')}
+                className={`flex flex-col items-center justify-center py-1 px-2.5 rounded-xl transition-all cursor-pointer ${
+                  activeTab === 'messages'
+                    ? 'text-indigo-600 dark:text-indigo-400 font-bold scale-105'
+                    : 'text-slate-500 dark:text-slate-400'
+                }`}
+              >
+                <MessageSquare className="w-5 h-5" />
+                <span className="text-[10px] mt-0.5 leading-none">Messages</span>
+              </button>
+            )}
+
+            <button
+              type="button"
+              onClick={() => setMobileMenuOpen(true)}
+              className="flex flex-col items-center justify-center py-1 px-2.5 rounded-xl text-slate-600 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 transition-all cursor-pointer"
+            >
+              <Menu className="w-5 h-5" />
+              <span className="text-[10px] mt-0.5 leading-none">Menu ({allowedTabs.length})</span>
+            </button>
+          </div>
         </div>
-      </div>
-      </DeviceFrameWrapper>
       </ThemeProvider>
     </ErrorBoundary>
   );

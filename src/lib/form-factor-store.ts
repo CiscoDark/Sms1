@@ -77,6 +77,11 @@ export function resolveNavLayout(
   pref: NavLayoutMode,
   formFactor: FormFactorType
 ): EffectiveNavLayout {
+  // Mobile devices (< 768px width) must ALWAYS use top navigation to preserve full viewport width
+  if (formFactor === 'mobile') {
+    return 'top';
+  }
+
   if (pref === 'side') return 'side';
   if (pref === 'top') return 'top';
 

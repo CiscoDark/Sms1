@@ -31,7 +31,7 @@ export const PublicCredentialVerifyView: React.FC<PublicCredentialVerifyViewProp
   const isValid = !!reportCard;
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] dark:bg-[#020617] flex flex-col items-center justify-center p-4 sm:p-6 md:p-8 font-sans relative overflow-hidden">
+    <div className="min-h-screen bg-[#F8FAFC] dark:bg-[#020617] flex flex-col items-center justify-start py-8 px-3 sm:px-6 md:p-8 font-sans relative overflow-y-auto">
       {/* Ambient Glassmorphism Luminous Glow Backdrops */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden z-0" aria-hidden="true">
         <div className="absolute -top-[12%] -left-[8%] w-[50vw] h-[50vw] max-w-[620px] max-h-[620px] rounded-full bg-gradient-to-br from-indigo-400/18 via-sky-400/12 to-transparent dark:from-indigo-600/16 dark:via-purple-600/10 dark:to-transparent blur-3xl" />
