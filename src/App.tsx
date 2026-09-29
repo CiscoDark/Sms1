@@ -654,7 +654,7 @@ export default function App() {
           <ServiceWorkerRegister currentUser={currentUser} onLogAudit={handleLogAudit} />
 
           {/* Main Top Header (Fully Responsive for Web PC and Mobile) */}
-          <header className="sticky top-0 z-30 bg-white/78 dark:bg-slate-900/75 backdrop-blur-xl border-b border-white/60 dark:border-white/10 shadow-[0_4px_24px_rgba(15,23,42,0.03)]">
+          <header className="sticky top-0 z-30 liquid-glass-header border-b border-white/70 dark:border-white/10 shadow-[0_8px_30px_rgba(15,23,42,0.05)]">
             <div className="max-w-7xl mx-auto px-2.5 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-1.5 sm:gap-4 w-full">
               {/* Left Brand */}
               <div className="flex items-center gap-2 sm:gap-3 min-w-0">
@@ -1375,16 +1375,16 @@ export default function App() {
           </AnimatePresence>
 
           {/* Sub Navigation Bar for Desktop PC */}
-          <nav className="hidden md:block bg-white/70 dark:bg-slate-900/65 backdrop-blur-xl border-b border-white/60 dark:border-white/10 shadow-[0_4px_20px_rgba(0,0,0,0.02)]">
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center gap-4 h-12 text-sm overflow-x-auto no-scrollbar whitespace-nowrap">
+          <nav className="hidden md:block liquid-glass-subtle border-b border-white/60 dark:border-white/10 shadow-[0_4px_20px_rgba(0,0,0,0.03)]">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center gap-1.5 h-13 text-sm overflow-x-auto no-scrollbar whitespace-nowrap py-1.5">
               {allowedTabs.includes('dashboard') && (
                 <button
                   type="button"
                   onClick={() => setActiveTab('dashboard')}
-                  className={`h-full border-b-2 font-medium flex items-center gap-2 transition-all cursor-pointer ${
+                  className={`px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-2 transition-all cursor-pointer ${
                     activeTab === 'dashboard'
-                      ? 'border-indigo-600 text-indigo-600 dark:border-indigo-400 dark:text-indigo-400 font-bold'
-                      : 'border-transparent text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200'
+                      ? 'liquid-glass-active scale-[1.02] shadow-xs'
+                      : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-white/50 dark:hover:bg-slate-800/50'
                   }`}
                 >
                   <LayoutDashboard className="w-4 h-4" />
@@ -1396,10 +1396,10 @@ export default function App() {
                 <button
                   type="button"
                   onClick={() => setActiveTab('admissions')}
-                  className={`h-full border-b-2 font-medium flex items-center gap-2 transition-all cursor-pointer ${
+                  className={`px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-2 transition-all cursor-pointer ${
                     activeTab === 'admissions'
-                      ? 'border-emerald-600 text-emerald-600 dark:border-emerald-400 dark:text-emerald-400 font-bold'
-                      : 'border-transparent text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200'
+                      ? 'liquid-glass-active scale-[1.02] shadow-xs'
+                      : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-white/50 dark:hover:bg-slate-800/50'
                   }`}
                 >
                   <UserPlus className="w-4 h-4" />
@@ -1414,10 +1414,10 @@ export default function App() {
                 <button
                   type="button"
                   onClick={() => setActiveTab('students')}
-                  className={`h-full border-b-2 font-medium flex items-center gap-2 transition-all cursor-pointer ${
+                  className={`px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-2 transition-all cursor-pointer ${
                     activeTab === 'students'
-                      ? 'border-indigo-600 text-indigo-600 dark:border-indigo-400 dark:text-indigo-400 font-bold'
-                      : 'border-transparent text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200'
+                      ? 'liquid-glass-active scale-[1.02] shadow-xs'
+                      : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-white/50 dark:hover:bg-slate-800/50'
                   }`}
                 >
                   <Users className="w-4 h-4" />
@@ -1432,10 +1432,10 @@ export default function App() {
                 <button
                   type="button"
                   onClick={() => setActiveTab('sessions')}
-                  className={`h-full border-b-2 font-medium flex items-center gap-2 transition-all cursor-pointer ${
+                  className={`px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-2 transition-all cursor-pointer ${
                     activeTab === 'sessions'
-                      ? 'border-indigo-600 text-indigo-600 dark:border-indigo-400 dark:text-indigo-400 font-bold'
-                      : 'border-transparent text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200'
+                      ? 'liquid-glass-active scale-[1.02] shadow-xs'
+                      : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-white/50 dark:hover:bg-slate-800/50'
                   }`}
                 >
                   <Calendar className="w-4 h-4" />
@@ -1452,10 +1452,10 @@ export default function App() {
                 <button
                   type="button"
                   onClick={() => setActiveTab('class-structure')}
-                  className={`h-full border-b-2 font-medium flex items-center gap-2 transition-all cursor-pointer ${
+                  className={`px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-2 transition-all cursor-pointer ${
                     activeTab === 'class-structure'
-                      ? 'border-indigo-600 text-indigo-600 dark:border-indigo-400 dark:text-indigo-400 font-bold'
-                      : 'border-transparent text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200'
+                      ? 'liquid-glass-active scale-[1.02] shadow-xs'
+                      : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-white/50 dark:hover:bg-slate-800/50'
                   }`}
                 >
                   <Layers className="w-4 h-4" />
@@ -1470,10 +1470,10 @@ export default function App() {
                 <button
                   type="button"
                   onClick={() => setActiveTab('timetables')}
-                  className={`h-full border-b-2 font-medium flex items-center gap-2 transition-all cursor-pointer ${
+                  className={`px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-2 transition-all cursor-pointer ${
                     activeTab === 'timetables'
-                      ? 'border-indigo-600 text-indigo-600 dark:border-indigo-400 dark:text-indigo-400 font-bold'
-                      : 'border-transparent text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200'
+                      ? 'liquid-glass-active scale-[1.02] shadow-xs'
+                      : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-white/50 dark:hover:bg-slate-800/50'
                   }`}
                 >
                   <Calendar className="w-4 h-4" />
@@ -1488,10 +1488,10 @@ export default function App() {
                 <button
                   type="button"
                   onClick={() => setActiveTab('teacher-timetable')}
-                  className={`h-full border-b-2 font-medium flex items-center gap-2 transition-all cursor-pointer ${
+                  className={`px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-2 transition-all cursor-pointer ${
                     activeTab === 'teacher-timetable'
-                      ? 'border-indigo-600 text-indigo-600 dark:border-indigo-400 dark:text-indigo-400 font-bold'
-                      : 'border-transparent text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200'
+                      ? 'liquid-glass-active scale-[1.02] shadow-xs'
+                      : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-white/50 dark:hover:bg-slate-800/50'
                   }`}
                 >
                   <Clock className="w-4 h-4" />
@@ -1506,10 +1506,10 @@ export default function App() {
                 <button
                   type="button"
                   onClick={() => setActiveTab('assessments')}
-                  className={`h-full border-b-2 font-medium flex items-center gap-2 transition-all cursor-pointer ${
+                  className={`px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-2 transition-all cursor-pointer ${
                     activeTab === 'assessments'
-                      ? 'border-indigo-600 text-indigo-600 dark:border-indigo-400 dark:text-indigo-400 font-bold'
-                      : 'border-transparent text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200'
+                      ? 'liquid-glass-active scale-[1.02] shadow-xs'
+                      : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-white/50 dark:hover:bg-slate-800/50'
                   }`}
                 >
                   <GraduationCap className="w-4 h-4" />
@@ -1524,10 +1524,10 @@ export default function App() {
                 <button
                   type="button"
                   onClick={() => setActiveTab('gradebook')}
-                  className={`h-full border-b-2 font-medium flex items-center gap-2 transition-all cursor-pointer ${
+                  className={`px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-2 transition-all cursor-pointer ${
                     activeTab === 'gradebook'
-                      ? 'border-indigo-600 text-indigo-600 dark:border-indigo-400 dark:text-indigo-400 font-bold'
-                      : 'border-transparent text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200'
+                      ? 'liquid-glass-active scale-[1.02] shadow-xs'
+                      : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-white/50 dark:hover:bg-slate-800/50'
                   }`}
                 >
                   <FileSpreadsheet className="w-4 h-4" />
@@ -1542,10 +1542,10 @@ export default function App() {
                 <button
                   type="button"
                   onClick={() => setActiveTab('student-portal')}
-                  className={`h-full border-b-2 font-medium flex items-center gap-2 transition-all cursor-pointer ${
+                  className={`px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-2 transition-all cursor-pointer ${
                     activeTab === 'student-portal'
-                      ? 'border-indigo-600 text-indigo-600 dark:border-indigo-400 dark:text-indigo-400 font-bold'
-                      : 'border-transparent text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200'
+                      ? 'liquid-glass-active scale-[1.02] shadow-xs'
+                      : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-white/50 dark:hover:bg-slate-800/50'
                   }`}
                 >
                   <GraduationCap className="w-4 h-4" />
@@ -1560,10 +1560,10 @@ export default function App() {
                 <button
                   type="button"
                   onClick={() => setActiveTab('parent-portal')}
-                  className={`h-full border-b-2 font-medium flex items-center gap-2 transition-all cursor-pointer ${
+                  className={`px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-2 transition-all cursor-pointer ${
                     activeTab === 'parent-portal'
-                      ? 'border-rose-600 text-rose-600 dark:border-rose-400 dark:text-rose-400 font-bold'
-                      : 'border-transparent text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200'
+                      ? 'liquid-glass-active scale-[1.02] shadow-xs'
+                      : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-white/50 dark:hover:bg-slate-800/50'
                   }`}
                 >
                   <Users className="w-4 h-4" />
@@ -1578,10 +1578,10 @@ export default function App() {
                 <button
                   type="button"
                   onClick={() => setActiveTab('messages')}
-                  className={`h-full border-b-2 font-medium flex items-center gap-2 transition-all cursor-pointer ${
+                  className={`px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-2 transition-all cursor-pointer ${
                     activeTab === 'messages'
-                      ? 'border-indigo-600 text-indigo-600 dark:border-indigo-400 dark:text-indigo-400 font-bold'
-                      : 'border-transparent text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200'
+                      ? 'liquid-glass-active scale-[1.02] shadow-xs'
+                      : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-white/50 dark:hover:bg-slate-800/50'
                   }`}
                 >
                   <MessageSquare className="w-4 h-4" />
@@ -1596,10 +1596,10 @@ export default function App() {
                 <button
                   type="button"
                   onClick={() => setActiveTab('fees')}
-                  className={`h-full border-b-2 font-medium flex items-center gap-2 transition-all cursor-pointer ${
+                  className={`px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-2 transition-all cursor-pointer ${
                     activeTab === 'fees'
-                      ? 'border-indigo-600 text-indigo-600 dark:border-indigo-400 dark:text-indigo-400 font-bold'
-                      : 'border-transparent text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200'
+                      ? 'liquid-glass-active scale-[1.02] shadow-xs'
+                      : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-white/50 dark:hover:bg-slate-800/50'
                   }`}
                 >
                   <CreditCard className="w-4 h-4" />
@@ -1614,10 +1614,10 @@ export default function App() {
                 <button
                   type="button"
                   onClick={() => setActiveTab('disciplinary')}
-                  className={`h-full border-b-2 font-medium flex items-center gap-2 transition-all cursor-pointer ${
+                  className={`px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-2 transition-all cursor-pointer ${
                     activeTab === 'disciplinary'
-                      ? 'border-amber-600 text-amber-600 dark:border-amber-400 dark:text-amber-400 font-bold'
-                      : 'border-transparent text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200'
+                      ? 'liquid-glass-active scale-[1.02] shadow-xs'
+                      : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-white/50 dark:hover:bg-slate-800/50'
                   }`}
                 >
                   <ShieldAlert className="w-4 h-4" />
@@ -1632,10 +1632,10 @@ export default function App() {
                 <button
                   type="button"
                   onClick={() => setActiveTab('suggestions')}
-                  className={`h-full border-b-2 font-medium flex items-center gap-2 transition-all cursor-pointer ${
+                  className={`px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-2 transition-all cursor-pointer ${
                     activeTab === 'suggestions'
-                      ? 'border-indigo-600 text-indigo-600 dark:border-indigo-400 dark:text-indigo-400 font-bold'
-                      : 'border-transparent text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200'
+                      ? 'liquid-glass-active scale-[1.02] shadow-xs'
+                      : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-white/50 dark:hover:bg-slate-800/50'
                   }`}
                 >
                   <Sparkles className="w-4 h-4" />
@@ -1650,10 +1650,10 @@ export default function App() {
                 <button
                   type="button"
                   onClick={() => setActiveTab('payroll')}
-                  className={`h-full border-b-2 font-medium flex items-center gap-2 transition-all cursor-pointer ${
+                  className={`px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-2 transition-all cursor-pointer ${
                     activeTab === 'payroll'
-                      ? 'border-emerald-600 text-emerald-600 dark:border-emerald-400 dark:text-emerald-400 font-bold'
-                      : 'border-transparent text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200'
+                      ? 'liquid-glass-active scale-[1.02] shadow-xs'
+                      : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-white/50 dark:hover:bg-slate-800/50'
                   }`}
                 >
                   <Banknote className="w-4 h-4" />
@@ -1668,10 +1668,10 @@ export default function App() {
                 <button
                   type="button"
                   onClick={() => setActiveTab('backup')}
-                  className={`h-full border-b-2 font-medium flex items-center gap-2 transition-all cursor-pointer ${
+                  className={`px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-2 transition-all cursor-pointer ${
                     activeTab === 'backup'
-                      ? 'border-rose-600 text-rose-600 dark:border-rose-400 dark:text-rose-400 font-bold'
-                      : 'border-transparent text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200'
+                      ? 'liquid-glass-active scale-[1.02] shadow-xs'
+                      : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-white/50 dark:hover:bg-slate-800/50'
                   }`}
                 >
                   <Database className="w-4 h-4" />
@@ -1686,10 +1686,10 @@ export default function App() {
                 <button
                   type="button"
                   onClick={() => setActiveTab('data-migration')}
-                  className={`h-full border-b-2 font-medium flex items-center gap-2 transition-all cursor-pointer ${
+                  className={`px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-2 transition-all cursor-pointer ${
                     activeTab === 'data-migration'
-                      ? 'border-indigo-600 text-indigo-600 dark:border-indigo-400 dark:text-indigo-400 font-bold'
-                      : 'border-transparent text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200'
+                      ? 'liquid-glass-active scale-[1.02] shadow-xs'
+                      : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-white/50 dark:hover:bg-slate-800/50'
                   }`}
                 >
                   <UploadCloud className="w-4 h-4" />
@@ -1704,10 +1704,10 @@ export default function App() {
                 <button
                   type="button"
                   onClick={() => setActiveTab('design-system')}
-                  className={`h-full border-b-2 font-medium flex items-center gap-2 transition-all cursor-pointer ml-auto ${
+                  className={`px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-2 transition-all cursor-pointer ml-auto ${
                     activeTab === 'design-system'
-                      ? 'border-indigo-600 text-indigo-600 dark:border-indigo-400 dark:text-indigo-400 font-bold'
-                      : 'border-transparent text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200'
+                      ? 'liquid-glass-active scale-[1.02] shadow-xs'
+                      : 'text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200 hover:bg-white/50 dark:hover:bg-slate-800/50'
                   }`}
                 >
                   <Palette className="w-4 h-4" />
