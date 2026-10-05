@@ -67,9 +67,9 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
   const canAdvance = ['SUPER_ADMIN', 'PRINCIPAL', 'ACADEMIC_DIRECTOR'].includes(userRole);
 
   return (
-    <div className="space-y-6">
+    <div className="dashboard-shell space-y-5 sm:space-y-6">
       {/* Hero Active Term Banner */}
-      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-indigo-950/90 via-slate-900/90 to-indigo-900/90 backdrop-blur-2xl text-white p-6 sm:p-8 border border-white/15 shadow-[0_20px_50px_rgba(31,38,135,0.15)]">
+      <div className="dashboard-hero relative overflow-hidden rounded-3xl bg-gradient-to-br from-indigo-950/90 via-slate-900/90 to-indigo-900/90 backdrop-blur-2xl text-white p-6 sm:p-8 border border-white/15 shadow-[0_20px_50px_rgba(31,38,135,0.15)]">
         <div className="absolute -top-24 -right-24 w-72 h-72 rounded-full bg-indigo-500/20 blur-3xl pointer-events-none" aria-hidden="true" />
         <div className="absolute -bottom-24 -left-24 w-72 h-72 rounded-full bg-sky-500/15 blur-3xl pointer-events-none" aria-hidden="true" />
 
@@ -122,7 +122,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
       {/* Primary KPI Metric Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Total Students */}
-        <Card className="p-5 space-y-2">
+        <Card className="dashboard-kpi p-5 space-y-2">
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
               Enrolled Students
@@ -141,7 +141,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
         </Card>
 
         {/* Class Levels & Arms */}
-        <Card className="p-5 space-y-2">
+        <Card className="dashboard-kpi p-5 space-y-2">
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
               Total Class Arms
@@ -162,7 +162,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
         </Card>
 
         {/* Overall Capacity Utilization */}
-        <Card className="p-5 space-y-2">
+        <Card className="dashboard-kpi p-5 space-y-2">
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
               Campus Capacity
@@ -181,7 +181,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
         </Card>
 
         {/* Teaching Faculty */}
-        <Card className="p-5 space-y-2">
+        <Card className="dashboard-kpi p-5 space-y-2">
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
               Form Masters & Staff
@@ -205,7 +205,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
       {/* Secondary Operational Metric Cards (Fees, Attendance, Admissions) */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         {/* Outstanding Fees */}
-        <Card className="p-5 space-y-2 border-l-4 border-l-rose-500">
+        <Card className="dashboard-kpi p-5 space-y-2 border-l-4 border-l-rose-500">
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
               Total Outstanding Fees
@@ -231,7 +231,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
         </Card>
 
         {/* Weekly Attendance */}
-        <Card className="p-5 space-y-2 border-l-4 border-l-emerald-500">
+        <Card className="dashboard-kpi p-5 space-y-2 border-l-4 border-l-emerald-500">
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
               Average Attendance (This Week)
@@ -251,7 +251,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
         </Card>
 
         {/* Pending Admissions */}
-        <Card className="p-5 space-y-2 border-l-4 border-l-sky-500">
+        <Card className="dashboard-kpi p-5 space-y-2 border-l-4 border-l-sky-500">
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
               Pending Admissions
